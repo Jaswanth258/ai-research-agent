@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Research Bot | AI Research Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <main class="container">
+        <header class="hero">
+            <h1>Agentic Research <span class="gradient-text">Bot</span></h1>
+            <p>Autonomous Research Engine powered by Gemini & ArXiv</p>
+        </header>
+
+        <section class="search-section">
+            <div class="search-box">
+                <input type="text" id="topicInput" placeholder="Enter research topic (e.g., 'Transformer-based object detection')..." autocomplete="off">
+                <button id="searchBtn">
+                    <span class="btn-text">Start Research</span>
+                    <div class="loader-icon" id="btnLoader"></div>
+                </button>
+            </div>
+        </section>
+
+        <section class="dashboard" id="dashboard" style="display: none;">
+            <div class="sidebar">
+                <div class="card metrics-card">
+                    <h3>Metrics</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <span class="metric-label">Time</span>
+                            <span class="metric-value" id="metricTime">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Papers</span>
+                            <span class="metric-value" id="metricPapers">-</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Score</span>
+                            <span class="metric-value" id="metricScore">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card steps-card">
+                    <h3>Reasoning Steps</h3>
+                    <ul id="stepsList" class="steps-list">
+                        <!-- Steps will be injected here -->
+                    </ul>
+                </div>
+            </div>
+
+            <div class="report-area">
+                <div class="card report-card">
+                    <div id="reportContent" class="markdown-body">
+                        <!-- Report Markdown will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

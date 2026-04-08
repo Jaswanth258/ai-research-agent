@@ -1,0 +1,14 @@
+feedparser
+sentence-transformers
+torch
+numpy
+scipy
+requests
+tqdm
+click
+typer
+huggingface-hub
+python-dotenv
+fastapi
+uvicorn
+openai
