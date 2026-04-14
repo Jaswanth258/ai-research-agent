@@ -1,6 +1,12 @@
 import sys
 import os
 
+# Force UTF-8 output so emoji in LLM log messages don't crash on Windows charmap terminals
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Put root directory in path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

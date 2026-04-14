@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 
 BASE_URL = "http://export.arxiv.org/api/query?"
 
-def search_papers(topic: str, max_results: int = 5) -> List[Dict[str, Any]]:
+def search_papers(topic: str, max_results: int = 5, date_range: str = None) -> List[Dict[str, Any]]:
     """Search arXiv for research papers related to a topic."""
     try:
         query = f"all:{topic}"
@@ -15,8 +15,22 @@ def search_papers(topic: str, max_results: int = 5) -> List[Dict[str, Any]]:
         if feed.bozo:
             return []
 
+        import time
+        from datetime import datetime, timedelta
+        
+        cutoff_date = None
+        if date_range == "1y":
+            cutoff_date = datetime.now() - timedelta(days=365)
+        elif date_range == "3y":
+            cutoff_date = datetime.now() - timedelta(days=365*3)
+
         papers = []
         for entry in feed.entries:
+            if cutoff_date and hasattr(entry, 'published_parsed') and entry.published_parsed:
+                pub_date = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                if pub_date < cutoff_date:
+                    continue
+                    
             papers.append({
                 "title": str(entry.title),
                 "summary": str(entry.summary).replace("\n", " ").strip(),

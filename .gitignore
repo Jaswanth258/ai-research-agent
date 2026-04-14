@@ -7,10 +7,11 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment structure
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
 
 # Logs
 logs/
@@ -20,8 +21,6 @@ logs/
 frontend/node_modules/
 frontend/dist/
 frontend/.eslintcache
-frontend_old/node_modules/
-frontend_old/dist/
 
 # OS generated files
 .DS_Store
@@ -31,3 +30,12 @@ frontend_old/dist/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Gemini agent data
+.gemini/

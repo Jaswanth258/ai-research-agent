@@ -24,8 +24,8 @@ const MAX_TIME = 25;
 
 const CRITERIA = [
   { name: 'Speed',        single: '✅ Fast (3–6s)',         multi: '❌ Slow (15–21s)',         winner: 'single', insight: 'Single is 3.2–5.1× faster on identical topics' },
-  { name: 'Coverage',     single: '⚠️ 5 papers / query',   multi: '✅ 6 papers / query',       winner: 'multi',  insight: 'Multi-agent retrieves ~20% more raw papers' },
-  { name: 'Precision',    single: '⚠️ Threshold: 0.30',    multi: '✅ Threshold: 0.35',        winner: 'multi',  insight: 'ReviewerAgent acts as a stricter quality gate' },
+  { name: 'Coverage',     single: '⚠️ Heuristic queries',  multi: '✅ LLM-diverse queries',    winner: 'multi',  insight: 'LLM generates more diverse search angles (same 5p/q budget)' },
+  { name: 'Precision',    single: '⚠️ Threshold: 0.30',    multi: '⚠️ Threshold: 0.30',       winner: 'tie',    insight: 'Equalized thresholds — difference is purely architectural' },
   { name: 'Report Depth', single: '⚠️ 4 gaps · 6 patterns',multi: '✅ 5 gaps · 7 patterns',    winner: 'multi',  insight: 'WriterAgent produces richer gap analysis' },
   { name: 'Transparency', single: '⚠️ Single unified log', multi: '✅ Agent-labeled steps',    winner: 'multi',  insight: 'Each agent prefixes its own log entries' },
   { name: 'Scalability',  single: '❌ Monolithic',          multi: '✅ Modular pipeline',       winner: 'multi',  insight: 'Agents can be upgraded independently' },
@@ -37,7 +37,8 @@ const CONTROLLED = [
   { icon: '🔍', name: 'Search Tool',     val: 'feedparser → arXiv API (shared module)' },
   { icon: '📡', name: 'Data Source',     val: 'Same arXiv API endpoint' },
   { icon: '📊', name: 'Similarity',      val: 'Cosine Similarity via util.cos_sim' },
-  { icon: '📄', name: 'Max Papers',      val: 'config.MAX_PAPERS = 5 (shared constant)' },
+  { icon: '🎯', name: 'Threshold',       val: '0.30 — equalized for both agents' },
+  { icon: '📄', name: 'Retrieval Budget', val: '4 queries × 5 papers/query (shared config)' },
   { icon: '🧵', name: 'Execution',       val: 'asyncio.gather() — parallel execution' },
 ];
 
@@ -73,21 +74,21 @@ export default function AnalysisDashboard() {
         </div>
         <div className="kpi-card">
           <div className="kpi-icon" style={{ color: '#f472b6' }}><Database size={28} /></div>
-          <div className="kpi-number">+26%</div>
-          <div className="kpi-label">More Papers Evaluated</div>
-          <div className="kpi-sub">Multi-agent: 12 vs 7 on avg</div>
+          <div className="kpi-number">2×</div>
+          <div className="kpi-label">LLM Calls (Multi)</div>
+          <div className="kpi-sub">Planner + Writer vs Single's 1 call</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-icon" style={{ color: '#34d399' }}><Target size={28} /></div>
-          <div className="kpi-number">0.35</div>
-          <div className="kpi-label">Multi-Agent Threshold</div>
-          <div className="kpi-sub">vs 0.30 for Single Agent (+17%)</div>
+          <div className="kpi-number">0.30</div>
+          <div className="kpi-label">Equalized Threshold</div>
+          <div className="kpi-sub">Both agents use identical relevance gate</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-icon" style={{ color: '#fbbf24' }}><FlaskConical size={28} /></div>
           <div className="kpi-number">2</div>
           <div className="kpi-label">Controlled Comparisons</div>
-          <div className="kpi-sub">Same topic · both systems · simultaneous</div>
+          <div className="kpi-sub">Same topic · same budget · same threshold</div>
         </div>
       </div>
 
@@ -121,9 +122,9 @@ export default function AnalysisDashboard() {
             <div className="arch-label" style={{ color: '#f472b6' }}>🩷 Multi-Agent System</div>
             <div className="arch-pipeline">
               {[
-                { name: 'Planner',    color: '#a78bfa', task: 'LLM Query Strategy (≤5)' },
-                { name: 'Researcher', color: '#818cf8', task: 'arXiv Search (6/q)' },
-                { name: 'Reviewer',   color: '#f472b6', task: 'Rank + Filter (θ=0.35)' },
+                { name: 'Planner',    color: '#a78bfa', task: 'LLM Query Strategy (≤4)' },
+                { name: 'Researcher', color: '#818cf8', task: 'arXiv Search (5/q)' },
+                { name: 'Reviewer',   color: '#f472b6', task: 'Rank + Filter (θ=0.30)' },
                 { name: 'Writer',     color: '#fb923c', task: 'LLM Deep Synthesis' },
               ].map((a, i, arr) => (
                 <React.Fragment key={a.name}>
@@ -169,7 +170,7 @@ export default function AnalysisDashboard() {
               <div className="llm-call-num" style={{ background: 'rgba(244,114,182,0.2)', color: '#f472b6' }}>1</div>
               <div className="llm-call-content">
                 <div className="llm-call-label">Planner: Diverse Query Generation</div>
-                LLM generates 5 semantically diverse search queries approaching the topic from
+                LLM generates up to 4 diverse search queries approaching the topic from
                 different angles (methods, surveys, applications, limitations…).
               </div>
             </div>
@@ -217,6 +218,7 @@ export default function AnalysisDashboard() {
           <div className="chart-note">
             ⚡ Multi-agent runs <strong>3.2×–5.1× slower</strong> than single-agent on identical topics —
             due to inter-agent coordination, API throttle delays (0.5s/query), and 2 LLM calls vs 1.
+            Both agents now use equalized retrieval budgets (4q × 5p/q, θ=0.30).
           </div>
         </div>
       </section>
@@ -255,7 +257,7 @@ export default function AnalysisDashboard() {
                     <td className="num-cell">{exp.multi.evaluated}</td>
                     <td className="num-cell">{exp.multi.relevant}</td>
                     <td className="num-cell score">{exp.multi.score}</td>
-                    <td className="num-cell">0.35</td>
+                    <td className="num-cell">0.30</td>
                   </tr>
                 </React.Fragment>
               ))}
@@ -319,9 +321,9 @@ export default function AnalysisDashboard() {
           </div>
           <div className="finding-card finding-multi">
             <div className="finding-icon">🎯</div>
-            <h3>Quality Gating Works</h3>
-            <p>The ReviewerAgent's stricter 0.35 threshold combined with 6 papers/query ensures
-              <strong> higher-quality, more comprehensive</strong> ranked outputs than the single agent.</p>
+            <h3>Query Diversity Matters</h3>
+            <p>With equalized thresholds (0.30) and retrieval budgets (5p/q), the multi-agent's edge
+              comes from <strong>LLM-diversified queries</strong> and a specialized Writer prompt — a pure architectural advantage.</p>
           </div>
           <div className="finding-card finding-neutral">
             <div className="finding-icon">📈</div>
@@ -333,8 +335,8 @@ export default function AnalysisDashboard() {
             <div className="finding-icon">🤖</div>
             <h3>LLM Creates Real Differentiation</h3>
             <p>With Featherless AI: multi-agent uses <strong>2 specialized calls</strong> (Planner + Writer)
-              vs single-agent's <strong>1 general call</strong> — a measurable cost/quality trade-off
-              that the template-based version could not demonstrate.</p>
+              vs single-agent's <strong>1 general call</strong>. Under equalized retrieval budgets,
+              this is the primary differentiator in output quality.</p>
           </div>
         </div>
       </section>

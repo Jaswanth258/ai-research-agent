@@ -90,8 +90,17 @@ def expand_queries_llm(topic: str) -> Optional[list]:
     )
     if not result:
         return None
-    queries = [q.strip() for q in result.strip().splitlines() if q.strip()]
-    return queries[:5] if queries else None
+    import re
+    cleaned_queries = []
+    for line in result.strip().splitlines():
+        # Strip bullets (-, *), numbering (1., 1)), and extra whitespace
+        q = re.sub(r"^(\d+[\.\)]\s*|[-*]\s*)", "", line.strip())
+        # Strip surrounding quotes often added by LLMs
+        q = q.strip('"\'')
+        if q and len(q) > 2 and not q.lower().startswith("here are"):
+            cleaned_queries.append(q)
+            
+    return cleaned_queries[:5] if cleaned_queries else None
 
 
 def synthesize_report_single(topic: str, papers: list) -> Optional[str]:
@@ -147,4 +156,39 @@ def synthesize_report_writer(topic: str, papers: list) -> Optional[str]:
         prompt,
         system_prompt="You are a senior AI researcher writing a literature synthesis. Use formal academic Markdown.",
         max_tokens=1000,
+    )
+
+
+def analyze_paper_llm(text: str, filename: str = "Uploaded Paper") -> Optional[str]:
+    """
+    Analyze a research paper's extracted text.
+    Produces a structured report with summary, key insights, and research gaps.
+    """
+    # Truncate to avoid exceeding token limits (roughly 6000 chars ≈ 1500 tokens)
+    truncated = text[:6000]
+    if len(text) > 6000:
+        truncated += "\n\n[... text truncated for analysis ...]"
+
+    prompt = (
+        f"You are analyzing a research paper titled/file: **{filename}**\n\n"
+        f"Here is the extracted text from the paper:\n\n"
+        f"---\n{truncated}\n---\n\n"
+        "Produce a comprehensive analysis in Markdown with these sections:\n\n"
+        "## 📄 Paper Summary\n"
+        "A concise 3-5 sentence overview of the paper's objective, methodology, and main contribution.\n\n"
+        "## 🔑 Key Insights\n"
+        "5-7 bullet points highlighting the most important findings, contributions, and novel ideas.\n\n"
+        "## 🔬 Methodology Analysis\n"
+        "Briefly describe the research methodology, experimental setup, and evaluation approach.\n\n"
+        "## ⚠️ Research Gaps & Limitations\n"
+        "4-6 bullet points identifying limitations, assumptions, missing comparisons, or areas for improvement.\n\n"
+        "## 🚀 Future Research Directions\n"
+        "3-4 concrete suggestions for extending this work.\n\n"
+        "Be analytical, specific, and academic. Reference specific details from the paper text."
+    )
+    return generate(
+        prompt,
+        system_prompt="You are an expert academic peer reviewer. Provide rigorous, constructive analysis in formal Markdown.",
+        max_tokens=1200,
+        temperature=0.5,
     )

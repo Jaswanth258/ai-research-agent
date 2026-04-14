@@ -33,6 +33,8 @@ class SingleAgent:
     def log_step(self, text: str):
         print(f"[STEP] {text}")
         self.steps.append(text)
+        if hasattr(self, '_current_callback') and self._current_callback:
+            self._current_callback(text)
 
     def log_to_file(self, text: str):
         os.makedirs("logs", exist_ok=True)
@@ -41,7 +43,7 @@ class SingleAgent:
 
     def expand_query(self, topic: str) -> List[str]:
         """Local-only query expansion using domain heuristics."""
-        self.log_step(f"Expanding query locally: {topic}")
+        self.log_step(f"Expanding query locally: {topic} (max: {config.MAX_QUERIES} queries)")
         expansions = [topic]
         lower_topic = topic.lower()
 
@@ -56,9 +58,12 @@ class SingleAgent:
             expansions.append(f"convolutional neural network {topic}")
 
         expansions.append(f"recent advances in {topic}")
-        return list(dict.fromkeys(expansions))[:4]
+        # ← controlled by config.MAX_QUERIES (shared with multi-agent)
+        return list(dict.fromkeys(expansions))[:config.MAX_QUERIES]
 
-    def rank_papers(self, topic: str, papers: List[Dict[str, Any]], threshold: float = 0.30) -> List[Dict[str, Any]]:
+    def rank_papers(self, topic: str, papers: List[Dict[str, Any]], threshold: float = None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        if threshold is None:
+            threshold = config.SINGLE_AGENT_THRESHOLD
         self.log_step(f"Semantic ranking of {len(papers)} papers (MiniLM).")
         if not papers:
             return []
@@ -70,14 +75,19 @@ class SingleAgent:
         scores = util.cos_sim(topic_emb, paper_embs)[0]
 
         ranked = []
+        all_scored = []
         for p, s in zip(papers, scores.tolist()):
             score = round(float(s), 3)
+            scored_entry = {"paper": p, "score": score, "passed": score >= threshold}
+            all_scored.append(scored_entry)
             if score >= threshold:
                 ranked.append({"paper": p, "score": score})
 
-        return sorted(ranked, key=lambda x: x["score"], reverse=True)
+        all_scored.sort(key=lambda x: x["score"], reverse=True)
+        ranked.sort(key=lambda x: x["score"], reverse=True)
+        return ranked, all_scored
 
-    def analyze_results(self, topic: str, ranked_papers: List[Dict[str, Any]]) -> Tuple[str, bool]:
+    def analyze_results(self, topic: str, ranked_papers: List[Dict[str, Any]], max_papers: int = config.MAX_PAPERS) -> Tuple[str, bool]:
         """
         Generate analysis report. Uses LLM if available, else falls back to templates.
         Returns (report_markdown, llm_used).
@@ -89,7 +99,7 @@ class SingleAgent:
             if llm_report:
                 header = f"# Research Analysis: {topic}\n\n"
                 paper_list = "## Top Relevant Papers\n"
-                for item in ranked_papers[:config.MAX_PAPERS]:
+                for item in ranked_papers[:max_papers]:
                     p = item["paper"]
                     paper_list += (
                         f"### {p['title']}\n"
@@ -104,7 +114,7 @@ class SingleAgent:
         res_list = [f"# Research Analysis for: {topic}\n\n"]
         res_list.append("## Key Summaries\n")
 
-        for item in ranked_papers[:config.MAX_PAPERS]:
+        for item in ranked_papers[:max_papers]:
             p = item["paper"]
             score = item["score"]
             res_list.append(f"### {p['title']}\n")
@@ -148,24 +158,37 @@ class SingleAgent:
 
         return "".join(res_list), False
 
-    def run(self, topic: str) -> Tuple[str, Dict[str, Any], List[str]]:
+    def run(self, topic: str, filters: Dict[str, Any] = None, log_callback=None) -> Tuple[str, Dict[str, Any], List[str]]:
+        self.steps = []   # reset steps each run — prevent accumulation across calls
+        self._current_callback = log_callback
         start_time = time.time()
         self.log_step(f"Starting Single-Agent Research: {topic}")
+        
+        filters = filters or {}
+        min_score_val = filters.get("min_score")
+        threshold = float(min_score_val) if min_score_val is not None and str(min_score_val).strip() else config.SINGLE_AGENT_THRESHOLD
+        
+        max_papers_val = filters.get("max_papers")
+        max_papers = int(max_papers_val) if max_papers_val is not None and str(max_papers_val).strip() else config.MAX_PAPERS
+        
+        date_range = filters.get("date_range")
 
         queries = self.expand_query(topic)
         all_retrieved: List[Dict[str, Any]] = []
+        all_scored: List[Dict[str, Any]] = []
         processed_urls = set()
 
         for q in queries:
-            self.log_step(f"Searching arXiv: '{q}'")
-            papers = search_papers(q, max_results=5)
+            self.log_step(f"Searching arXiv: '{q}' ({config.PAPERS_PER_QUERY} results, date: {date_range or 'Any'})")
+            papers = search_papers(q, max_results=config.PAPERS_PER_QUERY, date_range=date_range)
             new_papers = [p for p in papers if p["url"] not in processed_urls]
             for p in new_papers:
                 processed_urls.add(str(p["url"]))
 
             if new_papers:
-                ranked = self.rank_papers(topic, new_papers)
+                ranked, scored_batch = self.rank_papers(topic, new_papers, threshold=threshold)
                 all_retrieved.extend(ranked)
+                all_scored.extend(scored_batch)
 
         # Final deduplication and ranking
         all_retrieved = sorted(all_retrieved, key=lambda x: x["score"], reverse=True)
@@ -176,11 +199,32 @@ class SingleAgent:
             if title not in seen_titles:
                 unique_results.append(item)
                 seen_titles.add(title)
+                
+        # Dedupe all_scored just like we do for all_retrieved
+        all_scored = sorted(all_scored, key=lambda x: x["score"], reverse=True)
+        unique_all_scored = []
+        seen_all_titles = set()
+        for item in all_scored:
+            title = item["paper"]["title"].lower()
+            if title not in seen_all_titles:
+                unique_all_scored.append(item)
+                seen_all_titles.add(title)
 
         if not unique_results:
-            return "No relevant papers found.", {"papers": 0}, self.steps
+            end_time = time.time()
+            metrics = {
+                "time_taken_sec": round(float(end_time - start_time), 2),
+                "total_papers_evaluated": len(processed_urls),
+                "relevant_papers_found": 0,
+                "top_relevance_score": 0,
+                "llm_enhanced": False,
+                "llm_calls": 0,
+                "all_scored_papers": unique_all_scored,
+                "mode": "SINGLE_AGENT_LOCAL",
+            }
+            return "No relevant papers found.", metrics, self.steps
 
-        report_body, llm_used = self.analyze_results(topic, unique_results)
+        report_body, llm_used = self.analyze_results(topic, unique_results, max_papers=max_papers)
 
         end_time = time.time()
         metrics = {
@@ -190,6 +234,11 @@ class SingleAgent:
             "top_relevance_score": unique_results[0]["score"] if unique_results else 0,
             "llm_enhanced": llm_used,
             "llm_calls": 1 if llm_used else 0,
+            "queries_used": len(queries),
+            "papers_per_query": config.PAPERS_PER_QUERY,
+            "threshold": threshold,
+            "max_papers_used": max_papers,
+            "all_scored_papers": unique_all_scored,
             "mode": "SINGLE_AGENT_LLM" if llm_used else "SINGLE_AGENT_LOCAL",
         }
 
