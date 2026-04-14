@@ -15,6 +15,7 @@ openai
 PyPDF2
 python-multipart
 pymongo
+dnspython
 bcrypt
 PyJWT
 rouge-score
