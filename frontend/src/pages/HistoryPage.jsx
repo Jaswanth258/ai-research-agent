@@ -8,7 +8,7 @@ import {
   Sparkles, AlertCircle, Loader2, ChevronDown, ChevronUp, Cpu, Users, Download
 } from 'lucide-react';
 
-const API = 'http://127.0.0.1:8000/history';
+import { API_HISTORY } from '../api';
 
 export default function HistoryPage() {
   const [items, setItems] = useState([]);
@@ -23,7 +23,7 @@ export default function HistoryPage() {
     if (!token) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/list`, {
+      const { data } = await axios.get(`${API_HISTORY}/list`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setItems(data.items || []);
@@ -48,7 +48,7 @@ export default function HistoryPage() {
     if (!window.confirm('Delete all saved research? This cannot be undone.')) return;
     setClearing(true);
     try {
-      await axios.delete(`${API}/clear`, {
+      await axios.delete(`${API_HISTORY}/clear`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setItems([]);

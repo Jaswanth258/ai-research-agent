@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Mail, Lock, UserPlus, LogIn, AlertCircle, CheckCircle } from 'lucide-react';
 
-const AUTH_API = 'http://127.0.0.1:8000/auth';
+import { API_AUTH } from '../api';
 
 export default function AuthPage({ onLogin }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -26,7 +26,7 @@ export default function AuthPage({ onLogin }) {
     const endpoint = isLogin ? '/login' : '/signup';
     
     try {
-      const { data } = await axios.post(`${AUTH_API}${endpoint}`, { email, password });
+      const { data } = await axios.post(`${API_AUTH}${endpoint}`, { email, password });
       setSuccess(isLogin ? 'Login successful!' : 'Account created & logged in!');
       
       // Store token

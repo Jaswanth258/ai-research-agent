@@ -8,8 +8,7 @@ import {
   Sparkles, Clock, FileType, Hash, CheckCircle, X, Save
 } from 'lucide-react';
 
-const API = 'http://127.0.0.1:8000/paper';
-const HISTORY_API = 'http://127.0.0.1:8000/history';
+import { API_PAPER, API_HISTORY } from '../api';
 
 export default function PaperAnalysisPage({ userEmail, onRequestLogin }) {
   const [file, setFile] = useState(null);
@@ -72,7 +71,7 @@ export default function PaperAnalysisPage({ userEmail, onRequestLogin }) {
     formData.append('file', file);
 
     try {
-      const { data } = await axios.post(`${API}/analyze`, formData, {
+      const { data } = await axios.post(`${API_PAPER}/analyze`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000, // 2 min timeout for large papers
       });
@@ -135,7 +134,7 @@ export default function PaperAnalysisPage({ userEmail, onRequestLogin }) {
 
     setSaveStatus('saving');
     try {
-      await axios.post(`${HISTORY_API}/save`, {
+      await axios.post(`${API_HISTORY}/save`, {
         topic: file?.name || 'Paper Analysis',
         mode: 'paper',
         result: { report: result.report, filename: result.filename, llm_enhanced: result.llm_enhanced },

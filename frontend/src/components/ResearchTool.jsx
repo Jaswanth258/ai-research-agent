@@ -9,9 +9,7 @@ import {
   Bookmark, CheckCircle, Sliders, BarChart2, Download, Save, LogIn
 } from 'lucide-react';
 
-const HISTORY_API = 'http://127.0.0.1:8000/history';
-
-const API = 'http://127.0.0.1:8000/research';
+import { API_RESEARCH, API_HISTORY, API_STREAM } from '../api';
 
 export default function ResearchTool({ userEmail, onRequestLogin }) {
   const [topic, setTopic] = useState('');
@@ -98,7 +96,7 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
     setLiveLogs([]);
 
     const runId = Math.random().toString(36).substring(7);
-    const eventSource = new EventSource(`http://127.0.0.1:8000/stream/${runId}`);
+    const eventSource = new EventSource(`${API_STREAM}/${runId}`);
     
     eventSource.onmessage = (event) => {
       if (event.data === "[DONE]") {
@@ -112,7 +110,7 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
     };
 
     try {
-      const { data } = await axios.post(API, { 
+      const { data } = await axios.post(API_RESEARCH, { 
         topic: runTopic, 
         mode: runMode,
         min_score: minScore,
@@ -154,7 +152,7 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
         ? { single: compareResult.single, multi: compareResult.multi }
         : currentResult;
 
-      await axios.post(`${HISTORY_API}/save`, {
+      await axios.post(`${API_HISTORY}/save`, {
         topic: cachedTopic,
         mode,
         result: resultPayload,

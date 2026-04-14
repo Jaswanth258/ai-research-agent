@@ -48,12 +48,14 @@ def run_cli():
         print("Invalid choice.")
 
 def run_web():
-    print("\n=== Agentic Research Bot (Web UI Mode) ===\n")
-    print("Starting FastAPI server at http://127.0.0.1:8000")
+    port = int(os.getenv("PORT", 7860 if os.getenv("SPACE_ID") else 8000))
+    host = "0.0.0.0" if os.getenv("SPACE_ID") else "127.0.0.1"
+    print(f"\n=== Agentic Research Bot (Web UI Mode) ===\n")
+    print(f"Starting FastAPI server at http://{host}:{port}")
     print("Press Ctrl+C to stop the server.")
     import uvicorn
     from backend.server import app
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host=host, port=port)
 
 def main():
     if "--web" in sys.argv:

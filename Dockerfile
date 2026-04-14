@@ -23,6 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source
 COPY backend/ ./backend/
 COPY main.py .
+COPY .env.example .env
 
 # Copy built frontend from stage 1
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
@@ -30,8 +31,8 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Create directories for persistent data
 RUN mkdir -p logs faiss_index
 
-# Expose the backend port
-EXPOSE 8000
+# HF Spaces requires port 7860
+EXPOSE 7860
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
