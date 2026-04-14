@@ -16,6 +16,7 @@ PyPDF2
 python-multipart
 pymongo
 dnspython
+certifi
 bcrypt
 PyJWT
 rouge-score
