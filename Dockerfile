@@ -23,7 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source
 COPY backend/ ./backend/
 COPY main.py .
-COPY .env.example .env
 
 # Copy built frontend from stage 1
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
@@ -34,7 +33,7 @@ RUN mkdir -p logs faiss_index
 # HF Spaces requires port 7860
 EXPOSE 7860
 
-# Set environment variables
+# Set environment variables (HF Spaces injects secrets as env vars)
 ENV PYTHONUNBUFFERED=1
 
 # Run the application

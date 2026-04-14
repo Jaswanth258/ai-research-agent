@@ -1,6 +1,5 @@
 .git
 .gitignore
-.env
 .venv
 venv/
 __pycache__/
@@ -10,4 +9,4 @@ faiss_index/
 frontend/node_modules/
 frontend/dist/
 .gemini/
-*.md
+.env
