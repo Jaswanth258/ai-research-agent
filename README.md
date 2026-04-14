@@ -1,3 +1,15 @@
+---
+title: Agentic Research Bot
+emoji: ⚗️
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: AI-powered multi-agent research assistant
+---
+
 # ⚗️ Agentic Research Bot
 
 An AI-powered autonomous research assistant that discovers, evaluates, and synthesizes academic papers into structured reports — powered by multi-agent architectures, semantic embeddings, and large language models.
