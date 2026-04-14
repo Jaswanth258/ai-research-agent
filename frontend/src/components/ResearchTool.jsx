@@ -299,6 +299,55 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
         </div>
         {renderMetrics(data.metrics)}
       </div>
+      {data.quality_metrics && (
+        <div className="card" style={{ borderTop: '3px solid #a78bfa' }}>
+          <div className="card-header">
+            <BarChart2 size={18} color="#a78bfa" />
+            <h2>Report Quality</h2>
+            <span className="agent-badge" style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}>
+              Evaluation
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+            {data.quality_metrics.rouge_available && (
+              <>
+                <div className="quality-metric-card">
+                  <span className="quality-metric-val">{(data.quality_metrics.rouge_1 * 100).toFixed(1)}%</span>
+                  <span className="quality-metric-label">ROUGE-1</span>
+                </div>
+                <div className="quality-metric-card">
+                  <span className="quality-metric-val">{(data.quality_metrics.rouge_2 * 100).toFixed(1)}%</span>
+                  <span className="quality-metric-label">ROUGE-2</span>
+                </div>
+                <div className="quality-metric-card">
+                  <span className="quality-metric-val">{(data.quality_metrics.rouge_l * 100).toFixed(1)}%</span>
+                  <span className="quality-metric-label">ROUGE-L</span>
+                </div>
+              </>
+            )}
+            <div className="quality-metric-card">
+              <span className="quality-metric-val">{(data.quality_metrics.lexical_diversity * 100).toFixed(1)}%</span>
+              <span className="quality-metric-label">Lexical Diversity</span>
+            </div>
+            <div className="quality-metric-card">
+              <span className="quality-metric-val">{(data.quality_metrics.coverage_ratio * 100).toFixed(0)}%</span>
+              <span className="quality-metric-label">Source Coverage</span>
+            </div>
+            <div className="quality-metric-card">
+              <span className="quality-metric-val">{data.quality_metrics.word_count}</span>
+              <span className="quality-metric-label">Word Count</span>
+            </div>
+          </div>
+          {data.quality_metrics.key_terms?.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginRight: '0.3rem', lineHeight: '1.8' }}>Key Terms:</span>
+              {data.quality_metrics.key_terms.map((t, i) => (
+                <span key={i} className="feature-tag" style={{ fontSize: '0.7rem' }}>{t}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {renderRelevanceChart(data)}
       <div className="card">
         <div className="card-header">

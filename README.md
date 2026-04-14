@@ -6,6 +6,8 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-FF6F00?logo=meta&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
 ---
 
@@ -41,6 +43,26 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 - **Download PDF** — Export any report as a formatted PDF document
 - Personal research history with per-user authentication
 
+### 🧠 RAG Pipeline (FAISS Vector Store)
+- Papers are automatically indexed in a **FAISS** vector database after each search
+- Cross-session semantic search across all previously discovered papers
+- Persistent index stored on disk — grows your knowledge base over time
+- API endpoint for direct semantic search: `POST /vector-store/search`
+
+### 📈 Automated Report Evaluation
+- Quantitative quality metrics computed for every generated report
+- **ROUGE-1/2/L** scores measuring information coverage against source abstracts
+- **Lexical Diversity** (type-token ratio) measuring vocabulary richness
+- **Source Coverage** — what percentage of source papers are referenced
+- **Key Term Extraction** — top domain terms identified in the report
+- Side-by-side quality comparison in Compare mode
+
+### 🐳 Docker Deployment
+- One-command deployment: `docker compose up`
+- Multi-stage Dockerfile (Node build + Python runtime)
+- Docker Compose with MongoDB service included
+- Persistent volumes for FAISS index and database
+
 ### 🎨 Modern UI
 - Immersive 3D landing page with CSS perspective animations
 - Dark-themed glassmorphic design system
@@ -55,10 +77,13 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 - **Python 3.9+** — Core language
 - **FastAPI** + **Uvicorn** — Async API server
 - **Sentence-Transformers** (PyTorch) — Local semantic embeddings
+- **FAISS** — Vector database for RAG pipeline
 - **Featherless AI** (OpenAI-compatible) — LLM synthesis
+- **rouge-score** — Automated report evaluation (ROUGE-1/2/L)
 - **MongoDB** + **PyMongo** — User auth & research history
 - **PyPDF2** — PDF text extraction
 - **bcrypt** + **PyJWT** — Authentication
+- **Docker** + **Docker Compose** — Containerized deployment
 
 ### Frontend
 - **React 19** + **Vite 8** — SPA framework & dev server
@@ -152,6 +177,14 @@ The Vite dev server starts on `http://localhost:5173`.
 # Or use the provided script
 .\start.bat
 ```
+
+### 🐳 Docker Deployment (one command)
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:8000` — the entire stack (app + MongoDB) runs in containers.
 
 ---
 

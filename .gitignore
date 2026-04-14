@@ -17,6 +17,9 @@ __pycache__/
 logs/
 *.log
 
+# FAISS index (generated)
+faiss_index/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

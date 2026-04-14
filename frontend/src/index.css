@@ -455,6 +455,33 @@ body {
 .metric-val { font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
 .metric-val.good { color: var(--accent-green); }
 
+/* Quality Metrics */
+.quality-metric-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.85rem 0.5rem;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.2s;
+}
+.quality-metric-card:hover { border-color: rgba(167,139,250,0.4); }
+.quality-metric-val {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.quality-metric-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 /* Steps */
 .step-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0; }
 .step-item {
