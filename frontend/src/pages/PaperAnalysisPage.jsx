@@ -125,7 +125,10 @@ export default function PaperAnalysisPage({ userEmail, onRequestLogin }) {
       .split('\n')
       .map((line) => line.replace(/^\t+/, '').replace(/^    /, ''))
       .join('\n');
-    return { __html: marked.parse(text, { gfm: true, breaks: false }) };
+    const renderer = new marked.Renderer();
+    renderer.link = ({ href, title, text }) =>
+      `<a href="${href}" target="_blank" rel="noopener noreferrer"${title ? ` title="${title}"` : ''}>${text}</a>`;
+    return { __html: marked.parse(text, { gfm: true, breaks: false, renderer }) };
   };
 
   return (

@@ -1,16 +1,16 @@
 import React from 'react';
-import { Users, Layers, Activity, GitCommit } from 'lucide-react';
+import { Users, Layers, Activity, GitCommit, TrendingUp, MessageSquare } from 'lucide-react';
 
 export default function MultiAgentPage() {
   return (
     <div className="dashboard" style={{ paddingTop: '2rem' }}>
       <section className="dash-hero">
         <div className="dash-badge" style={{ borderColor: 'rgba(244,114,182,0.3)', color: '#f472b6', background: 'rgba(244,114,182,0.1)' }}>
-          🩷 Multi-Agent Pipeline
+          🩷 Enhanced Multi-Agent Pipeline
         </div>
-        <h1 className="dash-title">The Orchestrator Approach</h1>
+        <h1 className="dash-title">6-Agent Collaborative System</h1>
         <p className="dash-subtitle">
-          A distributed pipeline of four specialized AI agents working sequentially. Each agent is responsible for a specific cognitive task, ensuring deep coverage and high quality checking.
+          A distributed pipeline of six specialized AI agents with a peer-review feedback loop. Each agent handles a specific cognitive task — from research planning to trend analysis to quality assurance — producing publication-grade analysis.
         </p>
       </section>
 
@@ -18,7 +18,7 @@ export default function MultiAgentPage() {
         <h2 className="dash-section-title"><Layers size={20} /> Agent Roster</h2>
         <div className="card">
           <p style={{ color: 'var(--text-2)', lineHeight: '1.7', marginBottom: '2rem' }}>
-            Rather than relying on heuristics, the Multi-Agent system invokes LLM reasoning multiple times throughout its lifecycle to guarantee the depth and breadth of the research is fully explored.
+            The Enhanced Multi-Agent system uses up to <strong>5 LLM calls</strong> across its lifecycle. The pipeline includes a feedback loop where the Critic reviews the Writer's draft and the Writer revises — producing significantly deeper, more reliable research reports.
           </p>
           
           <div className="finding-card" style={{ marginBottom: '1rem', borderTopColor: '#a78bfa' }}>
@@ -33,13 +33,48 @@ export default function MultiAgentPage() {
           
           <div className="finding-card" style={{ marginBottom: '1rem', borderTopColor: '#f472b6', borderTopWidth: '3px', borderTopStyle: 'solid' }}>
             <h3 style={{color: '#f472b6'}}>3. The Reviewer Agent</h3>
-            <p>Acts as the quality gatekeeper. Uses the MiniLM model to encode vector similarities, applying a 0.30 relevance threshold (equalized with single-agent). Only the most relevant papers survive this semantic gate.</p>
+            <p>Acts as the quality gatekeeper. Uses the MiniLM model to encode vector similarities, applying a 0.30 relevance threshold. Only the most relevant papers survive this semantic gate.</p>
+          </div>
+
+          <div className="finding-card" style={{ marginBottom: '1rem', borderTopColor: '#0ea5e9', borderTopWidth: '3px', borderTopStyle: 'solid' }}>
+            <h3 style={{color: '#0ea5e9'}}>4. The TrendAnalyst Agent <span style={{fontSize: '0.7rem', background: 'rgba(14,165,233,0.15)', padding: '2px 8px', borderRadius: '8px', marginLeft: '0.5rem'}}>NEW</span></h3>
+            <p>Analyzes approved papers for temporal trends, methodology clusters, research hotspots, and field maturity. Identifies what's emerging vs. established and groups papers by approach (transformer-based, reinforcement learning, hybrid, etc.).</p>
           </div>
           
-          <div className="finding-card" style={{ borderTopColor: '#fb923c', borderTopWidth: '3px', borderTopStyle: 'solid' }}>
-            <h3 style={{color: '#fb923c'}}>4. The Writer Agent</h3>
-            <p>Uses a highly specialized LLM prompt. Instead of a basic summary, it writes an executive summary, conducts cross-paper advanced gap analysis, and synthesizes critical future research questions.</p>
+          <div className="finding-card" style={{ marginBottom: '1rem', borderTopColor: '#fb923c', borderTopWidth: '3px', borderTopStyle: 'solid' }}>
+            <h3 style={{color: '#fb923c'}}>5. The Writer Agent</h3>
+            <p>Uses a highly specialized LLM prompt to write an executive summary, cross-paper synthesis, advanced gap analysis, and critical research questions. Produces a first draft that goes through peer review.</p>
           </div>
+
+          <div className="finding-card" style={{ borderTopColor: '#ef4444', borderTopWidth: '3px', borderTopStyle: 'solid' }}>
+            <h3 style={{color: '#ef4444'}}>6. The Critic Agent <span style={{fontSize: '0.7rem', background: 'rgba(239,68,68,0.15)', padding: '2px 8px', borderRadius: '8px', marginLeft: '0.5rem'}}>NEW</span></h3>
+            <p>Acts as a senior peer reviewer — identifies weaknesses, missing connections, unsupported claims, and structural issues in the Writer's draft. Sends revision instructions back to the Writer for a second, polished pass with methodology comparison tables and confidence assessment.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Pipeline Flow Diagram */}
+      <section className="dash-section">
+        <h2 className="dash-section-title"><Activity size={20} /> Pipeline Flow</h2>
+        <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.85rem', fontWeight: '600' }}>
+            <span style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(167,139,250,0.3)' }}>Planner</span>
+            <span style={{ color: 'var(--text-3)' }}>→</span>
+            <span style={{ background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(129,140,248,0.3)' }}>Researcher</span>
+            <span style={{ color: 'var(--text-3)' }}>→</span>
+            <span style={{ background: 'rgba(244,114,182,0.15)', color: '#f472b6', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(244,114,182,0.3)' }}>Reviewer</span>
+            <span style={{ color: 'var(--text-3)' }}>→</span>
+            <span style={{ background: 'rgba(14,165,233,0.15)', color: '#0ea5e9', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(14,165,233,0.3)' }}>TrendAnalyst</span>
+            <span style={{ color: 'var(--text-3)' }}>→</span>
+            <span style={{ background: 'rgba(251,146,60,0.15)', color: '#fb923c', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(251,146,60,0.3)' }}>Writer</span>
+            <span style={{ color: 'var(--text-3)' }}>→</span>
+            <span style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>Critic</span>
+            <span style={{ color: 'var(--text-3)' }}>→</span>
+            <span style={{ background: 'rgba(251,146,60,0.15)', color: '#fb923c', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(251,146,60,0.3)' }}>Writer ✍️</span>
+          </div>
+          <p style={{ color: 'var(--text-3)', fontSize: '0.78rem', marginTop: '1rem' }}>
+            Feedback loop: Critic reviews draft → Writer revises with critique + trend insights → Final polished report
+          </p>
         </div>
       </section>
 
@@ -47,12 +82,17 @@ export default function MultiAgentPage() {
         <div className="finding-card finding-multi">
           <div className="finding-icon">🎯</div>
           <h3>LLM-Driven Research Depth</h3>
-          <p>With equalized retrieval budgets (4q × 5p/q, θ=0.30), the multi-agent's advantage is purely architectural: LLM-diversified queries surface papers that heuristic expansion misses entirely.</p>
+          <p>With up to 5 LLM calls across 6 agents, the system delivers publication-quality analysis. The feedback loop ensures claims are validated and connections between papers are strengthened.</p>
         </div>
         <div className="finding-card finding-llm">
-          <div className="finding-icon">🧠</div>
-          <h3>Modular Upgradability</h3>
-          <p>Because the logic is separated, developers can easily swap the Planner's model to a cheaper 8B model while upgrading the Writer's model to a massive 70B reasoning model.</p>
+          <div className="finding-icon">🔄</div>
+          <h3>Peer-Review Feedback Loop</h3>
+          <p>The Critic → Writer revision cycle mimics academic peer review: the Critic identifies weaknesses, and the Writer addresses them — producing reports with methodology comparisons and confidence assessments.</p>
+        </div>
+        <div className="finding-card" style={{ borderTop: '3px solid #0ea5e9' }}>
+          <div className="finding-icon">📈</div>
+          <h3>Trend Intelligence</h3>
+          <p>The TrendAnalyst identifies emerging research directions, methodology clusters, and field maturity — going beyond simple paper summaries to provide strategic research intelligence.</p>
         </div>
       </div>
     </div>

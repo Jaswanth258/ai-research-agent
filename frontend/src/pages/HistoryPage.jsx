@@ -58,7 +58,12 @@ export default function HistoryPage() {
     }
   };
 
-  const md = (src) => ({ __html: marked(src || '') });
+  const md = (src) => {
+    const renderer = new marked.Renderer();
+    renderer.link = ({ href, title, text }) =>
+      `<a href="${href}" target="_blank" rel="noopener noreferrer"${title ? ` title="${title}"` : ''}>${text}</a>`;
+    return { __html: marked(src || '', { renderer }) };
+  };
 
   const formatDate = (isoStr) => {
     if (!isoStr) return '';

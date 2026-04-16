@@ -13,6 +13,7 @@ try:
     db = client.agentic_research
     users_collection = db["users"]
     history_collection = db["research_history"]
+    otp_collection = db["password_otps"]
     
     # Verify connection
     client.admin.command('ping')
@@ -21,3 +22,4 @@ except Exception as e:
     print(f"Warning: Could not connect to MongoDB. Auth & history disabled. Error: {e}")
     users_collection = None
     history_collection = None
+    otp_collection = None

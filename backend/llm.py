@@ -192,3 +192,118 @@ def analyze_paper_llm(text: str, filename: str = "Uploaded Paper") -> Optional[s
         max_tokens=1200,
         temperature=0.5,
     )
+
+
+# ── Enhanced Multi-Agent Prompt Helpers ─────────────────────────────────────
+
+
+def analyze_trends_llm(topic: str, papers: list) -> Optional[str]:
+    """
+    TrendAnalyst agent: identify temporal patterns, methodology clusters,
+    and emerging research directions across the approved papers.
+    """
+    paper_info = "\n".join([
+        f"- **{p['paper']['title']}** (Score: {p['score']}) | "
+        f"Authors: {', '.join(p['paper']['authors'][:2])} | "
+        f"Published: {p['paper'].get('published', 'N/A')}"
+        for p in papers[:8]
+    ])
+
+    prompt = (
+        f"Analyze research trends across these papers on **{topic}**:\n\n"
+        f"{paper_info}\n\n"
+        "Provide analysis in these exact sections:\n\n"
+        "### 📈 Emerging Trends\n"
+        "3-4 bullet points on what's gaining traction and new directions.\n\n"
+        "### 🔬 Methodology Clusters\n"
+        "Group these papers by their approach (e.g., transformer-based, "
+        "reinforcement learning, hybrid). 2-3 clusters with paper names.\n\n"
+        "### 🔥 Research Hotspots\n"
+        "2-3 bullet points on the most active sub-areas within this topic.\n\n"
+        "### 📊 Field Maturity Assessment\n"
+        "One paragraph: Is this field nascent, growing, or mature? "
+        "What's the evidence from these papers?\n\n"
+        "Be concise and specific. Reference actual paper titles."
+    )
+    return generate(
+        prompt,
+        system_prompt="You are a bibliometrics and research trends analyst. "
+                      "Write in concise academic Markdown.",
+        max_tokens=700,
+        temperature=0.6,
+    )
+
+
+def critique_report_llm(topic: str, report: str) -> Optional[str]:
+    """
+    Critic agent: review the Writer's first draft and identify weaknesses.
+    """
+    # Truncate report to fit within context window
+    truncated_report = report[:4000]
+
+    prompt = (
+        f"You are a senior academic editor reviewing this research report on **{topic}**:\n\n"
+        f"---\n{truncated_report}\n---\n\n"
+        "Provide a structured critique with:\n\n"
+        "### Strengths\n"
+        "2-3 things the report does well.\n\n"
+        "### Weaknesses\n"
+        "3-4 specific issues: missing connections, unsupported claims, "
+        "vague statements, or structural problems.\n\n"
+        "### Missing Elements\n"
+        "2-3 things that should be added or expanded.\n\n"
+        "### Revision Instructions\n"
+        "3-4 concrete, actionable instructions for the writer to improve the report.\n\n"
+        "Be constructive and specific. Reference sections of the report."
+    )
+    return generate(
+        prompt,
+        system_prompt="You are a rigorous academic peer reviewer. "
+                      "Be critical but constructive.",
+        max_tokens=600,
+        temperature=0.5,
+    )
+
+
+def revise_report_llm(topic: str, original_report: str, critique: str,
+                       trend_analysis: str = "") -> Optional[str]:
+    """
+    Writer agent (revision pass): improve the report based on Critic feedback
+    and TrendAnalyst insights.
+    """
+    # Truncate inputs to fit context
+    trunc_report = original_report[:3500]
+    trunc_critique = critique[:1500]
+    trunc_trends = trend_analysis[:1200] if trend_analysis else ""
+
+    trend_section = ""
+    if trunc_trends:
+        trend_section = (
+            f"\n\n**Trend Analysis to incorporate:**\n{trunc_trends}\n"
+        )
+
+    prompt = (
+        f"Revise this research report on **{topic}** based on peer review feedback.\n\n"
+        f"**Original Report:**\n---\n{trunc_report}\n---\n\n"
+        f"**Peer Review Critique:**\n---\n{trunc_critique}\n---"
+        f"{trend_section}\n\n"
+        "Instructions:\n"
+        "1. Address ALL weaknesses identified in the critique\n"
+        "2. Add missing elements the reviewer identified\n"
+        "3. If trend analysis is provided, integrate relevant insights\n"
+        "4. Strengthen connections between papers\n"
+        "5. Ensure every claim is supported by evidence from the papers\n"
+        "6. Add a **Methodology Comparison** section as a markdown table\n"
+        "7. Add a **Confidence Assessment** at the end (how reliable is this analysis)\n\n"
+        "Output the COMPLETE revised report in Markdown. Include all original "
+        "sections plus improvements."
+    )
+    return generate(
+        prompt,
+        system_prompt="You are a senior research writer producing a final, "
+                      "publication-quality literature review. Write in formal "
+                      "academic Markdown with rich structure.",
+        max_tokens=1500,
+        temperature=0.55,
+    )
+

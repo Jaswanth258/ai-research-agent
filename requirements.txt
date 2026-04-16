@@ -20,3 +20,5 @@ bcrypt
 PyJWT
 rouge-score
 faiss-cpu
+google-auth
+requests

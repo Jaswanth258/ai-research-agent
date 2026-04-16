@@ -2,11 +2,18 @@ import time
 import os
 from datetime import datetime
 import re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from sentence_transformers import SentenceTransformer, util
 from ... import config
 from ...tools.search import search_papers
-from ...llm import is_available as llm_available, expand_queries_llm, synthesize_report_writer
+from ...llm import (
+    is_available as llm_available,
+    expand_queries_llm,
+    synthesize_report_writer,
+    analyze_trends_llm,
+    critique_report_llm,
+    revise_report_llm,
+)
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
@@ -125,18 +132,68 @@ class ReviewerAgent:
         return ranked, all_scored
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# NEW AGENT: TrendAnalyst — Identifies temporal patterns & methodology clusters
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TrendAnalystAgent:
+    """Analyzes approved papers for temporal trends, methodology clusters,
+    research hotspots, and field maturity. Uses 1 LLM call."""
+
+    def __init__(self, log_step_func):
+        self.log_step = log_step_func
+
+    def analyze(self, topic: str, ranked_papers: List[Dict[str, Any]]) -> Optional[str]:
+        if not llm_available() or not ranked_papers:
+            self.log_step("[TrendAnalyst] Skipped (LLM unavailable or no papers).")
+            return None
+
+        self.log_step(f"[TrendAnalyst] 📈 Analyzing trends across {len(ranked_papers)} papers...")
+        result = analyze_trends_llm(topic, ranked_papers)
+        if result:
+            self.log_step("[TrendAnalyst] Trend analysis complete.")
+        else:
+            self.log_step("[TrendAnalyst] ⚠️ LLM call failed — continuing without trends.")
+        return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NEW AGENT: Critic — Peer-reviews the Writer's first draft
+# ═══════════════════════════════════════════════════════════════════════════
+
+class CriticAgent:
+    """Reviews the Writer's first-pass report, identifies weaknesses,
+    missing elements, and provides revision instructions. Uses 1 LLM call."""
+
+    def __init__(self, log_step_func):
+        self.log_step = log_step_func
+
+    def critique(self, topic: str, report: str) -> Optional[str]:
+        if not llm_available() or not report:
+            self.log_step("[Critic] Skipped (LLM unavailable or empty report).")
+            return None
+
+        self.log_step("[Critic] 🔍 Peer-reviewing the Writer's draft...")
+        result = critique_report_llm(topic, report)
+        if result:
+            self.log_step("[Critic] Critique complete — sending feedback to Writer.")
+        else:
+            self.log_step("[Critic] ⚠️ LLM call failed — using first draft as final.")
+        return result
+
+
 class WriterAgent:
     def __init__(self, log_step_func):
         self.log_step = log_step_func
 
     def write_report(self, topic: str, ranked_papers: List[Dict[str, Any]], max_papers: int = config.MAX_PAPERS) -> Tuple[str, bool]:
         """
-        Synthesize the final report. Uses LLM if available (specialized writer prompt),
+        Synthesize the first-draft report. Uses LLM if available (specialized writer prompt),
         else falls back to template. Returns (report_markdown, llm_used).
         """
         # ── LLM-powered deep synthesis ───────────────────────────────────────
         if llm_available():
-            self.log_step("[Writer] 🤖 LLM deep synthesis (specialized writer prompt).")
+            self.log_step("[Writer] 🤖 LLM deep synthesis — first draft (specialized writer prompt).")
             llm_report = synthesize_report_writer(topic, ranked_papers)
             if llm_report:
                 header = f"# Multi-Agent Research Analysis: {topic}\n\n"
@@ -204,6 +261,17 @@ class WriterAgent:
 
         return "".join(res_list), False
 
+    def revise_report(self, topic: str, first_draft: str,
+                      critique: str, trend_analysis: str = "") -> Optional[str]:
+        """Second pass: revise the report using Critic feedback + TrendAnalyst insights."""
+        self.log_step("[Writer] ✍️ Revising report based on Critic feedback + Trend insights...")
+        revised = revise_report_llm(topic, first_draft, critique, trend_analysis)
+        if revised:
+            self.log_step("[Writer] ✅ Final revised report complete (2-pass).")
+        else:
+            self.log_step("[Writer] ⚠️ Revision failed — using first draft as final.")
+        return revised
+
 
 class MultiAgent:
     def __init__(self):
@@ -211,7 +279,9 @@ class MultiAgent:
         self.planner = PlannerAgent(self.log_step)
         self.researcher = ResearcherAgent(self.log_step)
         self.reviewer = ReviewerAgent(self.log_step)
+        self.trend_analyst = TrendAnalystAgent(self.log_step)
         self.writer = WriterAgent(self.log_step)
+        self.critic = CriticAgent(self.log_step)
 
     def log_step(self, text: str):
         print(f"[MULTI-AGENT STEP] {text}")
@@ -228,7 +298,7 @@ class MultiAgent:
         self.steps = []  # Clear previous state
         self._current_callback = log_callback
         start_time = time.time()
-        self.log_step(f"Starting Multi-Agent Orchestration for: {topic}")
+        self.log_step(f"Starting Enhanced Multi-Agent Orchestration (6 agents) for: {topic}")
         
         filters = filters or {}
         min_score_val = filters.get("min_score")
@@ -239,13 +309,17 @@ class MultiAgent:
         
         date_range = filters.get("date_range")
 
-        # 1. Planner (may use LLM)
-        queries = self.planner.plan(topic)
+        llm_calls = 0
 
-        # 2. Researcher
+        # ── Stage 1: Planner (may use LLM) ──────────────────────────────────
+        queries = self.planner.plan(topic)
+        if llm_available():
+            llm_calls += 1
+
+        # ── Stage 2: Researcher ──────────────────────────────────────────────
         raw_papers = self.researcher.research(queries, date_range=date_range)
 
-        # 3. Reviewer (semantic quality gate)
+        # ── Stage 3: Reviewer (semantic quality gate) ────────────────────────
         ranked_papers, all_scored = self.reviewer.review_and_rank(topic, raw_papers, threshold=threshold)
 
         if not ranked_papers:
@@ -257,19 +331,75 @@ class MultiAgent:
                 "relevant_papers_found": 0,
                 "top_relevance_score": 0,
                 "llm_enhanced": False,
-                "llm_calls": 1 if llm_available() else 0, # Planner might have used an API call
+                "llm_calls": llm_calls,
+                "agents_used": 3,
                 "all_scored_papers": all_scored,
                 "mode": "MULTI_AGENT_LOCAL",
             }
             return "No relevant papers found by the Multi-Agent System.", metrics, self.steps
 
-        # 4. Writer (may use LLM)
+        # ── Stage 4: TrendAnalyst (NEW — 1 LLM call) ────────────────────────
+        trend_analysis = self.trend_analyst.analyze(topic, ranked_papers)
+        if trend_analysis:
+            llm_calls += 1
+
+        # ── Stage 5: Writer — First Draft (1 LLM call) ──────────────────────
         report_body, llm_used = self.writer.write_report(topic, ranked_papers, max_papers=max_papers)
+        if llm_used:
+            llm_calls += 1
+
+        # ── Stage 6: Critic → Writer Revision (2 LLM calls) ─────────────────
+        final_report = report_body
+        revision_applied = False
+
+        if llm_used:  # Only critique+revise LLM-generated reports
+            critique = self.critic.critique(topic, report_body)
+            if critique:
+                llm_calls += 1
+
+                # Writer revision pass with critique + trends
+                revised = self.writer.revise_report(
+                    topic, report_body, critique,
+                    trend_analysis=trend_analysis or ""
+                )
+                if revised:
+                    llm_calls += 1
+                    revision_applied = True
+                    # Rebuild final report with header + paper list + revised body
+                    header = f"# Multi-Agent Research Analysis: {topic}\n\n"
+                    header += "> *Generated by 6-Agent Collaborative System — Peer-Reviewed & Revised*\n\n"
+                    paper_list = "## Reviewed Papers\n"
+                    for item in ranked_papers[:max_papers]:
+                        p = item["paper"]
+                        paper_list += (
+                            f"### {p['title']}\n"
+                            f"- **Relevance Score**: {item['score']}\n"
+                            f"- **Authors**: {', '.join(p['authors'][:3])}\n"
+                            f"- **Link**: [{p['url']}]({p['url']})\n\n"
+                        )
+
+                    # Inject trend analysis as its own section if available
+                    trend_section = ""
+                    if trend_analysis:
+                        trend_section = (
+                            "\n---\n\n## 📈 Research Trend Analysis\n\n"
+                            + trend_analysis
+                            + "\n"
+                        )
+
+                    final_report = (
+                        header + paper_list
+                        + "\n---\n\n" + revised
+                        + trend_section
+                    )
 
         end_time = time.time()
 
-        # LLM call count: Planner (1) + Writer (1) = 2, if LLM was used
-        llm_calls = 2 if llm_used else 0
+        agents_used = 4  # Planner + Researcher + Reviewer + Writer (always)
+        if trend_analysis:
+            agents_used += 1
+        if revision_applied:
+            agents_used += 1  # Critic counted (Writer revision is same Writer)
 
         metrics = {
             "time_taken_sec": round(float(end_time - start_time), 2),
@@ -278,15 +408,19 @@ class MultiAgent:
             "top_relevance_score": ranked_papers[0]["score"] if ranked_papers else 0,
             "llm_enhanced": llm_used,
             "llm_calls": llm_calls,
+            "agents_used": agents_used,
+            "revision_applied": revision_applied,
+            "trend_analysis": bool(trend_analysis),
             "queries_used": len(queries),
             "papers_per_query": config.PAPERS_PER_QUERY,
             "threshold": threshold,
             "max_papers_used": max_papers,
             "all_scored_papers": all_scored,
-            "mode": "MULTI_AGENT_LLM" if llm_used else "MULTI_AGENT_LOCAL",
+            "mode": "MULTI_AGENT_LLM_6" if revision_applied else ("MULTI_AGENT_LLM" if llm_used else "MULTI_AGENT_LOCAL"),
         }
 
         self.log_to_file(
             f"\n=== MULTI-AGENT RUN {datetime.now()} ===\nTopic: {topic}\nMetrics: {metrics}"
         )
-        return report_body, metrics, self.steps
+        return final_report, metrics, self.steps
+
