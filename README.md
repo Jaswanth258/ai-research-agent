@@ -12,7 +12,7 @@ short_description: AI-powered multi-agent research assistant
 
 # ⚗️ Agentic Research Bot
 
-An AI-powered autonomous research assistant that discovers, evaluates, and synthesizes academic papers into structured reports — powered by multi-agent architectures, semantic embeddings, and large language models.
+An AI-powered autonomous research assistant that discovers, evaluates, and synthesizes academic papers into structured reports — powered by a **6-agent collaborative pipeline**, semantic embeddings, and large language models.
 
 ![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)
@@ -20,6 +20,8 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-FF6F00?logo=meta&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+
+🔗 **Live Demo**: [jaswanth258-agentic-research-bot.hf.space](https://jaswanth258-agentic-research-bot.hf.space)
 
 ---
 
@@ -34,11 +36,36 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 ### 🤖 Dual Agent Architecture
 | | Single Agent | Multi-Agent Pipeline |
 |---|---|---|
-| **Design** | Monolithic — one class does everything | 4 specialized agents (Planner → Researcher → Reviewer → Writer) |
+| **Design** | Monolithic — one class does everything | **6 specialized agents** with feedback loop |
 | **Query Expansion** | Heuristic-based | LLM-powered diverse queries |
-| **Speed** | ~3–6 seconds | ~8–15 seconds |
-| **Depth** | Fast, cost-efficient | Deeper cross-paper analysis |
-| **LLM Calls** | 1 | 3 (planning, expansion, synthesis) |
+| **Pipeline** | Search → Rank → Report | Planner → Researcher → Reviewer → TrendAnalyst → Writer → Critic → Writer (revised) |
+| **Speed** | ~3–6 seconds | ~15–25 seconds |
+| **Depth** | Fast, cost-efficient | Publication-quality peer-reviewed analysis |
+| **LLM Calls** | 1 | Up to 5 (planning, trends, writing, critique, revision) |
+
+### 🧬 Enhanced Multi-Agent Pipeline (6 Agents)
+
+```
+Planner → Researcher → Reviewer → TrendAnalyst → Writer → Critic → Writer ✍️
+                                       ↑ NEW           ↑ feedback loop  ↑ NEW
+```
+
+| Agent | Role | LLM |
+|-------|------|-----|
+| **Planner** | Generates diverse search queries | ✅ |
+| **Researcher** | Executes arXiv searches | ❌ |
+| **Reviewer** | Semantic quality gate (MiniLM embeddings) | ❌ |
+| **TrendAnalyst** | Identifies emerging trends, methodology clusters, field maturity | ✅ |
+| **Writer** | First-draft synthesis with executive summary & gap analysis | ✅ |
+| **Critic** | Peer-reviews draft → identifies weaknesses & missing elements | ✅ |
+| **Writer (revision)** | Revises with critique + trends → final polished report | ✅ |
+
+### 🔐 Authentication System
+- **Email + Password** login for returning users
+- **Google OAuth** — One-click sign in with Google Identity Services
+- **Forgot Password** — Email OTP verification with 10-minute expiry
+- **Detailed Signup** — Full profile: name, institution, role, research interests
+- Premium glassmorphism UI with animated backgrounds
 
 ### 📄 Paper Analysis
 - Upload any PDF research paper
@@ -48,7 +75,7 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 ### 📊 Comparative Analysis Dashboard
 - Run both agents on the same topic and compare side-by-side
 - Real-time execution logging via Server-Sent Events (SSE)
-- Detailed metrics: relevance scores, paper counts, execution times
+- Detailed metrics: relevance scores, paper counts, execution times, agents used
 
 ### 💾 Save & Export
 - **Save Draft** — Persist research to MongoDB-backed history
@@ -95,6 +122,8 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 - **MongoDB** + **PyMongo** — User auth & research history
 - **PyPDF2** — PDF text extraction
 - **bcrypt** + **PyJWT** — Authentication
+- **google-auth** — Google OAuth ID token verification
+- **smtplib** — SMTP email service for OTP delivery
 - **Docker** + **Docker Compose** — Containerized deployment
 
 ### Frontend
@@ -103,6 +132,7 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 - **Marked** — Markdown → HTML rendering
 - **html2canvas** + **jsPDF** — PDF report generation
 - **Lucide React** — Icon library
+- **Google Identity Services** — Google OAuth sign-in
 - **Vanilla CSS** — Custom design system with 3D transforms
 
 ---
@@ -144,12 +174,27 @@ cp .env.example .env
 
 Edit `.env`:
 ```env
+# Required
 FEATHERLESS_API_KEY=your_featherless_api_key_here
-FEATHERLESS_MODEL=meta-llama/Meta-Llama-3.1-8B-Instruct
+FEATHERLESS_MODEL=deepseek-ai/DeepSeek-V3.2
 MONGO_URI=mongodb://localhost:27017
+
+# Google OAuth (optional — for "Sign in with Google")
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+
+# SMTP (optional — for password reset OTP emails)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-gmail-app-password
+SMTP_FROM_NAME=Agentic Research Bot
 ```
 
-> **Note**: The app works without an API key (uses template-based analysis) and without MongoDB (auth/history disabled). Add them for the full experience.
+> **Note**: The app works without any optional keys. Add them for the full experience:
+> - Without `FEATHERLESS_API_KEY` → Uses template-based analysis
+> - Without `MONGO_URI` → Auth & history disabled
+> - Without `GOOGLE_CLIENT_ID` → Google sign-in hidden
+> - Without `SMTP_*` → Forgot password feature disabled
 
 ### 3. Frontend Setup
 
@@ -207,14 +252,18 @@ agentic-research-bot/
 ├── backend/
 │   ├── agents/
 │   │   ├── single_agent/       # Monolithic agent (heuristic queries + 1 LLM call)
-│   │   └── multi_agent/        # 4-agent pipeline (Planner, Researcher, Reviewer, Writer)
+│   │   └── multi_agent/        # 6-agent pipeline (Planner, Researcher, Reviewer,
+│   │                           #   TrendAnalyst, Writer, Critic)
 │   ├── tools/
 │   │   └── search.py           # arXiv API integration via feedparser
-│   ├── auth.py                 # JWT authentication (bcrypt + PyJWT)
+│   ├── auth.py                 # JWT + Google OAuth + OTP password reset
+│   ├── email_service.py        # SMTP email service for OTP delivery
 │   ├── db.py                   # MongoDB connection manager
 │   ├── history.py              # Research history CRUD endpoints
 │   ├── paper_analysis.py       # PDF upload & analysis endpoint
-│   ├── llm.py                  # Featherless AI LLM integration
+│   ├── llm.py                  # Featherless AI LLM integration (7 prompt functions)
+│   ├── evaluation.py           # ROUGE scoring & report quality metrics
+│   ├── vector_store.py         # FAISS vector store for RAG pipeline
 │   ├── config.py               # Tunable parameters (thresholds, limits)
 │   └── server.py               # FastAPI app, CORS, SSE streaming
 ├── frontend/
@@ -226,17 +275,18 @@ agentic-research-bot/
 │       │   ├── LandingPage.jsx        # 3D animated landing page
 │       │   ├── PaperAnalysisPage.jsx  # PDF upload & analysis
 │       │   ├── SingleAgentPage.jsx    # Single agent architecture docs
-│       │   ├── MultiAgentPage.jsx     # Multi-agent architecture docs
-│       │   ├── AuthPage.jsx           # Login / Sign Up
+│       │   ├── MultiAgentPage.jsx     # 6-agent architecture docs
+│       │   ├── AuthPage.jsx           # Login / Sign Up / Google OAuth / OTP
 │       │   ├── HistoryPage.jsx        # Saved research history
 │       │   └── AboutPage.jsx          # Project information
 │       ├── App.jsx                    # Root component & routing
-│       └── index.css                  # Complete design system
+│       └── index.css                  # Complete design system (~2700 lines)
 ├── main.py                     # CLI / Web entry point
 ├── requirements.txt            # Python dependencies
+├── Dockerfile                  # Multi-stage Docker build
+├── docker-compose.yml          # Docker Compose orchestration
 ├── .env.example                # Environment template
-├── start.bat                   # Windows quick-start script
-└── evaluation_guide.md         # Architecture comparison guide
+└── start.bat                   # Windows quick-start script
 ```
 
 ---
@@ -254,6 +304,21 @@ Key parameters can be tuned in `backend/config.py`:
 
 ---
 
+## 🔐 Authentication Setup
+
+### Google OAuth (optional)
+1. Go to [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create OAuth 2.0 Client ID (Web application)
+3. Add `http://localhost:5173` to Authorized JavaScript origins
+4. Copy Client ID to `.env` as `GOOGLE_CLIENT_ID`
+
+### SMTP for Password Reset (optional)
+1. Enable 2FA on your Gmail account
+2. Create an App Password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+3. Add credentials to `.env` as `SMTP_USER` and `SMTP_PASSWORD`
+
+---
+
 ## 🧪 Troubleshooting
 
 | Issue | Solution |
@@ -263,6 +328,8 @@ Key parameters can be tuned in `backend/config.py`:
 | MongoDB connection failed | Ensure MongoDB is running, or remove `MONGO_URI` from `.env` to disable auth |
 | LLM analysis unavailable | Add `FEATHERLESS_API_KEY` to `.env` — the app falls back to template analysis without it |
 | PDF extraction fails | Ensure the PDF contains selectable text (scanned/image PDFs are not supported) |
+| Google sign-in "no registered origin" | Add `http://localhost:5173` to OAuth Authorized JavaScript origins |
+| Forgot password OTP not received | Verify `SMTP_USER` and `SMTP_PASSWORD` in `.env` (use Gmail App Password) |
 
 ---
 
