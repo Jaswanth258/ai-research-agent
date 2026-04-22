@@ -143,13 +143,41 @@ class TrendAnalystAgent:
     def __init__(self, log_step_func):
         self.log_step = log_step_func
 
-    def analyze(self, topic: str, ranked_papers: List[Dict[str, Any]]) -> Optional[str]:
+    def analyze(self, topic: str, ranked_papers: List[Dict[str, Any]], model=None) -> Optional[str]:
         if not llm_available() or not ranked_papers:
             self.log_step("[TrendAnalyst] Skipped (LLM unavailable or no papers).")
             return None
 
         self.log_step(f"[TrendAnalyst] 📈 Analyzing trends across {len(ranked_papers)} papers...")
-        result = analyze_trends_llm(topic, ranked_papers)
+        cluster_info = ""
+
+        try:
+            if model and len(ranked_papers) >= 3:
+                self.log_step(f"[TrendAnalyst] 📈 Executing K-Means Clustering on {len(ranked_papers)} papers...")
+                from sklearn.cluster import KMeans
+                
+                summaries = [str(p["paper"]["summary"]) for p in ranked_papers]
+                # If embeddings is a local tensor, convert to numpy
+                embeddings = model.encode(summaries, convert_to_tensor=False)
+                
+                num_clusters = min(3, len(ranked_papers))
+                kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init='auto')
+                labels = kmeans.fit_predict(embeddings)
+                
+                clusters = {i: [] for i in range(num_clusters)}
+                for idx, label in enumerate(labels):
+                    clusters[label].append(ranked_papers[idx]["paper"]["title"])
+                    
+                cluster_lines = []
+                for c_id, titles in clusters.items():
+                    cluster_lines.append(f"Cluster {c_id + 1}: " + " | ".join(titles))
+                    
+                cluster_info = "\n".join(cluster_lines)
+                self.log_step(f"[TrendAnalyst] 📈 Formed {num_clusters} mathematical clusters.")
+        except Exception as e:
+            self.log_step(f"[TrendAnalyst] ⚠️ K-Means clustering failed: {str(e)}")
+
+        result = analyze_trends_llm(topic, ranked_papers, cluster_info=cluster_info)
         if result:
             self.log_step("[TrendAnalyst] Trend analysis complete.")
         else:
@@ -295,10 +323,14 @@ class MultiAgent:
             f.write(text + "\n")
 
     def run(self, topic: str, filters: Dict[str, Any] = None, log_callback=None) -> Tuple[str, Dict[str, Any], List[str]]:
+        import threading
         self.steps = []  # Clear previous state
         self._current_callback = log_callback
         start_time = time.time()
         self.log_step(f"Starting Enhanced Multi-Agent Orchestration (6 agents) for: {topic}")
+        
+        # Pre-warm Reviewer's model in background
+        threading.Thread(target=self.reviewer.get_model, daemon=True).start()
         
         filters = filters or {}
         min_score_val = filters.get("min_score")
@@ -338,13 +370,17 @@ class MultiAgent:
             }
             return "No relevant papers found by the Multi-Agent System.", metrics, self.steps
 
-        # ── Stage 4: TrendAnalyst (NEW — 1 LLM call) ────────────────────────
-        trend_analysis = self.trend_analyst.analyze(topic, ranked_papers)
+        # ── Stage 4 & 5: TrendAnalyst and Writer (Parallel) ─────────────────
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future_trend = executor.submit(self.trend_analyst.analyze, topic, ranked_papers, self.reviewer.get_model())
+            future_writer = executor.submit(self.writer.write_report, topic, ranked_papers, max_papers)
+
+            trend_analysis = future_trend.result()
+            report_body, llm_used = future_writer.result()
+
         if trend_analysis:
             llm_calls += 1
-
-        # ── Stage 5: Writer — First Draft (1 LLM call) ──────────────────────
-        report_body, llm_used = self.writer.write_report(topic, ranked_papers, max_papers=max_papers)
         if llm_used:
             llm_calls += 1
 

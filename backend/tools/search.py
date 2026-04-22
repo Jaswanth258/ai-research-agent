@@ -2,10 +2,18 @@ import feedparser # type: ignore
 import urllib.parse
 from typing import List, Dict, Any
 
+import hashlib
+
 BASE_URL = "http://export.arxiv.org/api/query?"
+_search_cache = {}
 
 def search_papers(topic: str, max_results: int = 5, date_range: str = None) -> List[Dict[str, Any]]:
     """Search arXiv for research papers related to a topic."""
+    cache_key = hashlib.md5(f"{topic}:{max_results}:{date_range}".encode("utf-8")).hexdigest()
+    if cache_key in _search_cache:
+        print(f"[Search Tools] Cache hit for topic: {topic}")
+        return _search_cache[cache_key]
+
     try:
         query = f"all:{topic}"
         encoded_query = urllib.parse.quote(query)
@@ -37,6 +45,7 @@ def search_papers(topic: str, max_results: int = 5, date_range: str = None) -> L
                 "authors": [str(a.name) for a in entry.authors],
                 "url": str(entry.link)
             })
+        _search_cache[cache_key] = papers
         return papers
     except Exception:
         return []

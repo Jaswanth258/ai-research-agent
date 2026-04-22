@@ -22,3 +22,4 @@ rouge-score
 faiss-cpu
 google-auth
 requests
+scikit-learn

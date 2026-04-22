@@ -4,6 +4,7 @@ OpenAI-compatible API wrapper for enhanced agent reasoning.
 Set FEATHERLESS_API_KEY in .env to enable LLM-powered synthesis.
 """
 import os
+import hashlib
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -39,6 +40,8 @@ def is_available() -> bool:
     """Check if LLM integration is configured."""
     return bool(FEATHERLESS_API_KEY)
 
+_llm_cache = {}
+
 def generate(
     prompt: str,
     system_prompt: str = "You are a helpful AI research assistant.",
@@ -54,6 +57,12 @@ def generate(
     if not client:
         return None
 
+    # Use in-memory caching to bypass redundant LLM API calls on "next reruns"
+    cache_key = hashlib.md5(f"{model}:{system_prompt}:{prompt}:{max_tokens}:{temperature}".encode("utf-8")).hexdigest()
+    if cache_key in _llm_cache:
+        print("[LLM] Cache hit! Returning saved response.")
+        return _llm_cache[cache_key]
+
     try:
         response = client.chat.completions.create(
             model=model,
@@ -64,7 +73,9 @@ def generate(
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        return response.choices[0].message.content.strip()
+        result = response.choices[0].message.content.strip()
+        _llm_cache[cache_key] = result
+        return result
     except Exception as e:
         print(f"[LLM] Generation failed: {e}")
         return None
@@ -197,7 +208,7 @@ def analyze_paper_llm(text: str, filename: str = "Uploaded Paper") -> Optional[s
 # ── Enhanced Multi-Agent Prompt Helpers ─────────────────────────────────────
 
 
-def analyze_trends_llm(topic: str, papers: list) -> Optional[str]:
+def analyze_trends_llm(topic: str, papers: list, cluster_info: str = "") -> Optional[str]:
     """
     TrendAnalyst agent: identify temporal patterns, methodology clusters,
     and emerging research directions across the approved papers.
@@ -208,16 +219,18 @@ def analyze_trends_llm(topic: str, papers: list) -> Optional[str]:
         f"Published: {p['paper'].get('published', 'N/A')}"
         for p in papers[:8]
     ])
+    
+    cluster_context = f"\n\n**Empirical K-Means Clusters:**\n{cluster_info}\n" if cluster_info else ""
 
     prompt = (
         f"Analyze research trends across these papers on **{topic}**:\n\n"
-        f"{paper_info}\n\n"
+        f"{paper_info}\n"
+        f"{cluster_context}\n"
         "Provide analysis in these exact sections:\n\n"
         "### 📈 Emerging Trends\n"
         "3-4 bullet points on what's gaining traction and new directions.\n\n"
         "### 🔬 Methodology Clusters\n"
-        "Group these papers by their approach (e.g., transformer-based, "
-        "reinforcement learning, hybrid). 2-3 clusters with paper names.\n\n"
+        f"{'Use the provided Empirical K-Means Clusters to accurately describe the groups of these papers.' if cluster_info else 'Group these papers by their approach (e.g., transformer-based, reinforcement learning, hybrid). 2-3 clusters with paper names.'}\n\n"
         "### 🔥 Research Hotspots\n"
         "2-3 bullet points on the most active sub-areas within this topic.\n\n"
         "### 📊 Field Maturity Assessment\n"
