@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { marked } from 'marked';
 import { downloadReportPDF } from '../pdfExport';
@@ -8,9 +8,9 @@ import {
   Bookmark, CheckCircle, Sliders, BarChart2, Download, Save, LogIn
 } from 'lucide-react';
 
-import { API_RESEARCH, API_HISTORY, API_STREAM } from '../api';
+import { API_RESEARCH, API_HISTORY, API_STREAM, API_AUTH } from '../api';
 
-export default function ResearchTool({ userEmail, onRequestLogin }) {
+export default function ResearchTool({ userEmail, onRequestLogin, onNavigate }) {
   const [topic, setTopic] = useState('');
   const [mode, setMode]   = useState('single');
   const [error, setError] = useState(null);
@@ -22,6 +22,35 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
   const [showFilters, setShowFilters] = useState(false);
   const [liveLogs, setLiveLogs] = useState([]);
   const resultsRef = useRef(null);
+
+  const [userInterests, setUserInterests] = useState([]);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('agentic_token');
+      if (!userEmail || !token) {
+        setUserInterests([]);
+        return;
+      }
+      try {
+        const { data } = await axios.get(`${API_AUTH}/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (data.research_interests) {
+          const interests = data.research_interests
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+          setUserInterests(interests);
+        } else {
+          setUserInterests([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch profile", err);
+      }
+    };
+    fetchProfile();
+  }, [userEmail]);
 
   // ── Per-mode result caches ───────────────────────────────────────────────
   const [cachedTopic, setCachedTopic]     = useState('');
@@ -70,9 +99,14 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
     }
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!topic.trim()) return;
+  const handleSearch = (e) => {
+    e?.preventDefault?.();
+    executeSearch();
+  };
+
+  const executeSearch = async (runTopicOverride) => {
+    const runTopic = (typeof runTopicOverride === 'string' ? runTopicOverride : topic).trim();
+    if (!runTopic) return;
 
     // Auth gate — require login to run searches
     if (!userEmail) {
@@ -81,7 +115,6 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
     }
 
     const runMode   = mode;
-    const runTopic  = topic.trim();
 
     // Smart Compare: if both already cached, combine instantly
     if (runMode === 'compare' && singleResult && multiResult && cachedTopic === runTopic) {
@@ -457,6 +490,50 @@ export default function ResearchTool({ userEmail, onRequestLogin }) {
             </div>
           )}
         </form>
+
+        {/* --- My Interests Section --- */}
+        {userEmail && userInterests.length > 0 && (
+          <div className="research-interests-section" style={{ maxWidth: '860px', margin: '2rem auto 0', textAlign: 'left' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.8rem', color: 'var(--text-1)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Sparkles size={16} color="var(--primary)" /> My Research Interests
+            </h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {userInterests.map((interest, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setTopic(interest);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (onNavigate) onNavigate('interests');
+                  }}
+                  style={{
+                    background: topic === interest ? 'var(--primary)' : 'var(--bg-2)',
+                    color: topic === interest ? 'white' : 'var(--text-1)',
+                    border: `1px solid ${topic === interest ? 'var(--primary)' : 'var(--border-color)'}`,
+                    padding: '0.5rem 1rem',
+                    borderRadius: '20px',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (topic !== interest) {
+                      e.target.style.background = 'var(--bg-3)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (topic !== interest) {
+                      e.target.style.background = 'var(--bg-2)';
+                    }
+                  }}
+                >
+                  {interest}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Context hints */}
         {mode === 'compare' && !modeLoading.compare && !compareResult && (

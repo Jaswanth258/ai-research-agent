@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   Mail, Lock, UserPlus, LogIn, AlertCircle, CheckCircle,
   User, Building2, GraduationCap, Sparkles, ArrowLeft,
-  Eye, EyeOff, KeyRound, ShieldCheck, Chrome
+  Eye, EyeOff, KeyRound, ShieldCheck, Chrome, Plus, X
 } from 'lucide-react';
 
 import { API_AUTH } from '../api';
@@ -50,7 +50,7 @@ export default function AuthPage({ onLogin }) {
   const [fullName, setFullName] = useState('');
   const [institution, setInstitution] = useState('');
   const [role, setRole] = useState('');
-  const [researchInterests, setResearchInterests] = useState('');
+  const [researchInterests, setResearchInterests] = useState(['']);
 
   // Forgot password / OTP
   const [forgotEmail, setForgotEmail] = useState('');
@@ -177,7 +177,7 @@ export default function AuthPage({ onLogin }) {
         full_name: fullName,
         institution,
         role,
-        research_interests: researchInterests,
+        research_interests: researchInterests.filter(i => i.trim() !== '').join(', '),
       });
       localStorage.setItem('agentic_token', data.token);
       localStorage.setItem('agentic_email', data.email);
@@ -561,17 +561,70 @@ export default function AuthPage({ onLogin }) {
               </div>
 
               {/* Research Interests */}
-              <div className="form-group">
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <label>Research Interests</label>
-                <div className="input-wrapper input-wrapper-textarea">
-                  <Sparkles size={16} className="input-icon input-icon-top" />
-                  <textarea
-                    placeholder="e.g., Machine Learning, NLP, Computer Vision, Quantum Computing…"
-                    value={researchInterests}
-                    onChange={(e) => setResearchInterests(e.target.value)}
-                    disabled={loading}
-                    rows={2}
-                  />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {researchInterests.map((interest, index) => (
+                    <div key={index} style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                      <div className="input-wrapper" style={{ flex: 1, margin: 0 }}>
+                        <Sparkles size={16} className="input-icon" />
+                        <input
+                          type="text"
+                          placeholder="e.g., Machine Learning"
+                          value={interest}
+                          onChange={(e) => {
+                            const newInterests = [...researchInterests];
+                            newInterests[index] = e.target.value;
+                            setResearchInterests(newInterests);
+                          }}
+                          disabled={loading}
+                        />
+                      </div>
+                      {researchInterests.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newInterests = researchInterests.filter((_, i) => i !== index);
+                            setResearchInterests(newInterests);
+                          }}
+                          style={{
+                            background: 'var(--bg-2)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '8px',
+                            minWidth: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-2)',
+                            cursor: 'pointer'
+                          }}
+                          disabled={loading}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                      {index === researchInterests.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setResearchInterests([...researchInterests, ''])}
+                          style={{
+                            background: 'var(--primary)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            minWidth: '42px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            cursor: 'pointer'
+                          }}
+                          disabled={loading}
+                        >
+                          <Plus size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 

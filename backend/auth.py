@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
 import bcrypt
 import jwt
@@ -50,6 +50,8 @@ class ResetPasswordRequest(BaseModel):
     email: str
     new_password: str
 
+class UpdateInterestsRequest(BaseModel):
+    research_interests: str
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -284,3 +286,64 @@ def reset_password(body: ResetPasswordRequest):
     otp_collection.delete_many({"email": body.email})
 
     return {"message": "Password reset successfully. You can now log in."}
+
+# ── Get Current User ─────────────────────────────────────────────────────────
+
+@router.get("/me")
+def get_current_user(authorization: str = Header(None)):
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database connection not available")
+    
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.split(" ")[1]
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        email = payload["email"]
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid/Expired token")
+        
+    user = users_collection.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    return {
+        "email": user["email"],
+        "full_name": user.get("full_name", ""),
+        "institution": user.get("institution", ""),
+        "role": user.get("role", ""),
+        "research_interests": user.get("research_interests", "")
+    }
+
+
+@router.put("/me/interests")
+def update_interests(req: UpdateInterestsRequest, authorization: str = Header(None)):
+    """Update the research interests of the currently logged-in user."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid token")
+        
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        email = payload.get("email")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    if users_collection is None:
+        raise HTTPException(status_code=500, detail="Database not available")
+
+    result = users_collection.update_one(
+        {"email": email},
+        {"$set": {"research_interests": req.research_interests}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"message": "Interests updated successfully", "research_interests": req.research_interests}

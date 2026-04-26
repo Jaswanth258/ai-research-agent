@@ -6,9 +6,10 @@ import MultiAgentPage from './pages/MultiAgentPage';
 import AboutPage from './pages/AboutPage';
 import AuthPage from './pages/AuthPage';
 import HistoryPage from './pages/HistoryPage';
+import MyInterestsPage from './pages/MyInterestsPage';
 import PaperAnalysisPage from './pages/PaperAnalysisPage';
 import LandingPage from './pages/LandingPage';
-import { Search, BarChart2, Info, LogIn, LogOut, Cpu, Users, Clock, FileUp, Home } from 'lucide-react';
+import { Search, BarChart2, Info, LogIn, LogOut, Cpu, Users, Clock, FileUp, Home, Star } from 'lucide-react';
 import './index.css';
 
 export default function App() {
@@ -84,12 +85,20 @@ export default function App() {
               <Info size={14} /> About
             </button>
             {userEmail && (
-              <button
-                className={`nav-tab ${activeTab === 'history' ? 'nav-tab-active' : ''}`}
-                onClick={() => setActiveTab('history')}
-              >
-                <Clock size={14} /> History
-              </button>
+              <>
+                <button
+                  className={`nav-tab ${activeTab === 'interests' ? 'nav-tab-active' : ''}`}
+                  onClick={() => setActiveTab('interests')}
+                >
+                  <Star size={14} /> My Interests
+                </button>
+                <button
+                  className={`nav-tab ${activeTab === 'history' ? 'nav-tab-active' : ''}`}
+                  onClick={() => setActiveTab('history')}
+                >
+                  <Clock size={14} /> History
+                </button>
+              </>
             )}
           </div>
 
@@ -130,6 +139,7 @@ export default function App() {
           <ResearchTool 
             userEmail={userEmail} 
             onRequestLogin={handleRequestLogin} 
+            onNavigate={setActiveTab}
           />
         </div>
 
@@ -146,6 +156,7 @@ export default function App() {
         {activeTab === 'multi' && <MultiAgentPage />}
         {activeTab === 'about' && <AboutPage />}
         {activeTab === 'history' && <HistoryPage />}
+        {activeTab === 'interests' && <MyInterestsPage userEmail={userEmail} />}
         
         {activeTab === 'auth' && (
           <AuthPage onLogin={(email) => {
