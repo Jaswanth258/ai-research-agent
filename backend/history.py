@@ -63,7 +63,11 @@ def list_history(authorization: str = Header(None)):
     items = []
     for doc in cursor:
         # Convert datetime to string for JSON serialization
-        doc["saved_at"] = doc["saved_at"].isoformat() if doc.get("saved_at") else ""
+        if doc.get("saved_at"):
+            if hasattr(doc["saved_at"], "isoformat"):
+                doc["saved_at"] = doc["saved_at"].isoformat()
+            else:
+                doc["saved_at"] = str(doc["saved_at"])
         items.append(doc)
 
     return {"items": items}
@@ -76,4 +80,5 @@ def clear_history(authorization: str = Header(None)):
 
     email = get_user_email(authorization)
     result = history_collection.delete_many({"email": email})
-    return {"status": "cleared", "deleted": result.deleted_count}
+    count = getattr(result, "deleted_count", result)
+    return {"status": "cleared", "deleted": count}

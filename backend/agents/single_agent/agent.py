@@ -2,8 +2,7 @@ import time
 import os
 from datetime import datetime
 import re
-import json
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, TypedDict
 from sentence_transformers import SentenceTransformer, util
 from ... import config
 from ...tools.search import search_papers
@@ -11,11 +10,33 @@ from ...llm import is_available as llm_available, synthesize_report_single
 
 MODEL_NAME = "all-MiniLM-L6-v2"
 
+
+class SingleAgentState(TypedDict):
+    topic: str
+    queries: List[str]
+    raw_papers: List[Dict[str, Any]]
+    ranked_papers: List[Dict[str, Any]]
+    all_scored_papers: List[Dict[str, Any]]
+    report: str
+    llm_used: bool
+    threshold: float
+    max_papers: int
+    date_range: Optional[str]
+    processed_count: int
+
+
 class SingleAgent:
+    """
+    Single-Agent System powered by LangGraph.
+    Executes a linear computational graph:
+    START -> expand_query -> search -> rank -> synthesize -> END
+    """
+
     def __init__(self):
         self.steps: List[str] = []
+        self._current_callback = None
         self.model: SentenceTransformer = self._load_model_with_retry()
-        self.all_papers: Dict[str, Any] = {}
+        self.graph = self._build_graph()
 
     def _load_model_with_retry(self, max_retries: int = 3) -> SentenceTransformer:
         """Load SentenceTransformer model with retry logic."""
@@ -31,7 +52,7 @@ class SingleAgent:
         raise RuntimeError("Failed to load model")
 
     def log_step(self, text: str):
-        print(f"[STEP] {text}")
+        print(f"[LANGGRAPH SINGLE-AGENT STEP] {text}")
         self.steps.append(text)
         if hasattr(self, '_current_callback') and self._current_callback:
             self._current_callback(text)
@@ -41,9 +62,33 @@ class SingleAgent:
         with open(config.LOG_FILE, "a", encoding="utf-8") as f:
             f.write(text + "\n")
 
-    def expand_query(self, topic: str) -> List[str]:
-        """Local-only query expansion using domain heuristics."""
-        self.log_step(f"Expanding query locally: {topic} (max: {config.MAX_QUERIES} queries)")
+    def _build_graph(self):
+        """Construct the LangGraph StateGraph pipeline."""
+        try:
+            from langgraph.graph import StateGraph, START, END
+
+            workflow = StateGraph(SingleAgentState)
+            workflow.add_node("expand_query", self._expand_query_node)
+            workflow.add_node("search_papers", self._search_papers_node)
+            workflow.add_node("rank_papers", self._rank_papers_node)
+            workflow.add_node("synthesize_report", self._synthesize_report_node)
+
+            workflow.add_edge(START, "expand_query")
+            workflow.add_edge("expand_query", "search_papers")
+            workflow.add_edge("search_papers", "rank_papers")
+            workflow.add_edge("rank_papers", "synthesize_report")
+            workflow.add_edge("synthesize_report", END)
+
+            return workflow.compile()
+        except Exception as e:
+            self.log_step(f"Warning: LangGraph initialization fallback: {e}")
+            return None
+
+    # ── LangGraph Graph Nodes ──────────────────────────────────────────────────
+
+    def _expand_query_node(self, state: SingleAgentState) -> Dict[str, Any]:
+        topic = state["topic"]
+        self.log_step(f"[LangGraph: expand_query] Expanding query locally: {topic} (max: {config.MAX_QUERIES})")
         expansions = [topic]
         lower_topic = topic.lower()
 
@@ -58,15 +103,39 @@ class SingleAgent:
             expansions.append(f"convolutional neural network {topic}")
 
         expansions.append(f"recent advances in {topic}")
-        # ← controlled by config.MAX_QUERIES (shared with multi-agent)
-        return list(dict.fromkeys(expansions))[:config.MAX_QUERIES]
+        queries = list(dict.fromkeys(expansions))[:config.MAX_QUERIES]
+        return {"queries": queries}
 
-    def rank_papers(self, topic: str, papers: List[Dict[str, Any]], threshold: float = None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-        if threshold is None:
-            threshold = config.SINGLE_AGENT_THRESHOLD
-        self.log_step(f"Semantic ranking of {len(papers)} papers (MiniLM).")
+    def _search_papers_node(self, state: SingleAgentState) -> Dict[str, Any]:
+        queries = state["queries"]
+        date_range = state.get("date_range")
+        raw_papers = []
+        processed_urls = set()
+
+        for q in queries:
+            self.log_step(f"[LangGraph: search_papers] Searching arXiv: '{q}' ({config.PAPERS_PER_QUERY} papers, date: {date_range or 'Any'})")
+            try:
+                papers = search_papers(q, max_results=config.PAPERS_PER_QUERY, date_range=date_range)
+                for p in papers:
+                    if p["url"] not in processed_urls:
+                        raw_papers.append(p)
+                        processed_urls.add(str(p["url"]))
+            except Exception as e:
+                self.log_step(f"[LangGraph: search_papers] Error retrieving '{q}': {e}")
+
+        return {
+            "raw_papers": raw_papers,
+            "processed_count": len(processed_urls)
+        }
+
+    def _rank_papers_node(self, state: SingleAgentState) -> Dict[str, Any]:
+        topic = state["topic"]
+        papers = state.get("raw_papers", [])
+        threshold = state.get("threshold", config.SINGLE_AGENT_THRESHOLD)
+
+        self.log_step(f"[LangGraph: rank_papers] Semantic ranking of {len(papers)} papers (MiniLM).")
         if not papers:
-            return []
+            return {"ranked_papers": [], "all_scored_papers": []}
 
         topic_emb = self.model.encode(topic, convert_to_tensor=True)
         summaries = [str(p["summary"]) for p in papers]
@@ -83,18 +152,41 @@ class SingleAgent:
             if score >= threshold:
                 ranked.append({"paper": p, "score": score})
 
-        all_scored.sort(key=lambda x: x["score"], reverse=True)
+        # Deduplicate by paper title
         ranked.sort(key=lambda x: x["score"], reverse=True)
-        return ranked, all_scored
+        unique_ranked = []
+        seen_titles = set()
+        for item in ranked:
+            title = item["paper"]["title"].lower()
+            if title not in seen_titles:
+                unique_ranked.append(item)
+                seen_titles.add(title)
 
-    def analyze_results(self, topic: str, ranked_papers: List[Dict[str, Any]], max_papers: int = config.MAX_PAPERS) -> Tuple[str, bool]:
-        """
-        Generate analysis report. Uses LLM if available, else falls back to templates.
-        Returns (report_markdown, llm_used).
-        """
-        # ── Try LLM-enhanced synthesis ──────────────────────────────────────
+        all_scored.sort(key=lambda x: x["score"], reverse=True)
+        unique_all_scored = []
+        seen_all = set()
+        for item in all_scored:
+            title = item["paper"]["title"].lower()
+            if title not in seen_all:
+                unique_all_scored.append(item)
+                seen_all.add(title)
+
+        return {
+            "ranked_papers": unique_ranked,
+            "all_scored_papers": unique_all_scored
+        }
+
+    def _synthesize_report_node(self, state: SingleAgentState) -> Dict[str, Any]:
+        topic = state["topic"]
+        ranked_papers = state.get("ranked_papers", [])
+        max_papers = state.get("max_papers", config.MAX_PAPERS)
+
+        if not ranked_papers:
+            return {"report": "No relevant papers found.", "llm_used": False}
+
+        # ── Try LLM synthesis via LangChain / Featherless AI ────────────────
         if llm_available():
-            self.log_step("🤖 LLM synthesis via Featherless AI (1 unified call).")
+            self.log_step("[LangGraph: synthesize_report] 🤖 LLM synthesis via LangChain (1 unified call).")
             llm_report = synthesize_report_single(topic, ranked_papers)
             if llm_report:
                 header = f"# Research Analysis: {topic}\n\n"
@@ -107,10 +199,13 @@ class SingleAgent:
                         f"- **Authors**: {', '.join(p['authors'][:3])}\n"
                         f"- **Link**: [{p['url']}]({p['url']})\n\n"
                     )
-                return header + paper_list + "\n---\n\n" + llm_report, True
+                return {
+                    "report": header + paper_list + "\n---\n\n" + llm_report,
+                    "llm_used": True
+                }
 
         # ── Template-based fallback ──────────────────────────────────────────
-        self.log_step("Generating template-based report (no LLM key).")
+        self.log_step("[LangGraph: synthesize_report] Generating template-based report (no LLM key).")
         res_list = [f"# Research Analysis for: {topic}\n\n"]
         res_list.append("## Key Summaries\n")
 
@@ -156,93 +251,78 @@ class SingleAgent:
         res_list.append(f"- What are the primary bottlenecks in the scalability of **{topic}** observed in recent works?\n")
         res_list.append(f"- How do these findings impact the practical deployment of **{topic}** in industry?\n")
 
-        return "".join(res_list), False
+        return {
+            "report": "".join(res_list),
+            "llm_used": False
+        }
+
+    # ── Public Runner Method ──────────────────────────────────────────────────
 
     def run(self, topic: str, filters: Dict[str, Any] = None, log_callback=None) -> Tuple[str, Dict[str, Any], List[str]]:
-        self.steps = []   # reset steps each run — prevent accumulation across calls
+        self.steps = []
         self._current_callback = log_callback
         start_time = time.time()
-        self.log_step(f"Starting Single-Agent Research: {topic}")
-        
+        self.log_step(f"Starting Single-Agent LangGraph Research: {topic}")
+
         filters = filters or {}
         min_score_val = filters.get("min_score")
         threshold = float(min_score_val) if min_score_val is not None and str(min_score_val).strip() else config.SINGLE_AGENT_THRESHOLD
-        
+
         max_papers_val = filters.get("max_papers")
         max_papers = int(max_papers_val) if max_papers_val is not None and str(max_papers_val).strip() else config.MAX_PAPERS
-        
+
         date_range = filters.get("date_range")
 
-        queries = self.expand_query(topic)
-        all_retrieved: List[Dict[str, Any]] = []
-        all_scored: List[Dict[str, Any]] = []
-        processed_urls = set()
+        initial_state: SingleAgentState = {
+            "topic": topic,
+            "queries": [],
+            "raw_papers": [],
+            "ranked_papers": [],
+            "all_scored_papers": [],
+            "report": "",
+            "llm_used": False,
+            "threshold": threshold,
+            "max_papers": max_papers,
+            "date_range": date_range,
+            "processed_count": 0,
+        }
 
-        for q in queries:
-            self.log_step(f"Searching arXiv: '{q}' ({config.PAPERS_PER_QUERY} results, date: {date_range or 'Any'})")
-            papers = search_papers(q, max_results=config.PAPERS_PER_QUERY, date_range=date_range)
-            new_papers = [p for p in papers if p["url"] not in processed_urls]
-            for p in new_papers:
-                processed_urls.add(str(p["url"]))
-
-            if new_papers:
-                ranked, scored_batch = self.rank_papers(topic, new_papers, threshold=threshold)
-                all_retrieved.extend(ranked)
-                all_scored.extend(scored_batch)
-
-        # Final deduplication and ranking
-        all_retrieved = sorted(all_retrieved, key=lambda x: x["score"], reverse=True)
-        unique_results = []
-        seen_titles = set()
-        for item in all_retrieved:
-            title = item["paper"]["title"].lower()
-            if title not in seen_titles:
-                unique_results.append(item)
-                seen_titles.add(title)
-                
-        # Dedupe all_scored just like we do for all_retrieved
-        all_scored = sorted(all_scored, key=lambda x: x["score"], reverse=True)
-        unique_all_scored = []
-        seen_all_titles = set()
-        for item in all_scored:
-            title = item["paper"]["title"].lower()
-            if title not in seen_all_titles:
-                unique_all_scored.append(item)
-                seen_all_titles.add(title)
-
-        if not unique_results:
-            end_time = time.time()
-            metrics = {
-                "time_taken_sec": round(float(end_time - start_time), 2),
-                "total_papers_evaluated": len(processed_urls),
-                "relevant_papers_found": 0,
-                "top_relevance_score": 0,
-                "llm_enhanced": False,
-                "llm_calls": 0,
-                "all_scored_papers": unique_all_scored,
-                "mode": "SINGLE_AGENT_LOCAL",
-            }
-            return "No relevant papers found.", metrics, self.steps
-
-        report_body, llm_used = self.analyze_results(topic, unique_results, max_papers=max_papers)
+        if self.graph:
+            final_state = self.graph.invoke(initial_state)
+        else:
+            # Fallback direct execution
+            s1 = self._expand_query_node(initial_state)
+            initial_state.update(s1)
+            s2 = self._search_papers_node(initial_state)
+            initial_state.update(s2)
+            s3 = self._rank_papers_node(initial_state)
+            initial_state.update(s3)
+            s4 = self._synthesize_report_node(initial_state)
+            initial_state.update(s4)
+            final_state = initial_state
 
         end_time = time.time()
+        unique_results = final_state.get("ranked_papers", [])
+        llm_used = final_state.get("llm_used", False)
+        unique_all_scored = final_state.get("all_scored_papers", [])
+        processed_count = final_state.get("processed_count", len(unique_all_scored))
+
         metrics = {
             "time_taken_sec": round(float(end_time - start_time), 2),
-            "total_papers_evaluated": len(processed_urls),
+            "total_papers_evaluated": processed_count,
             "relevant_papers_found": len(unique_results),
             "top_relevance_score": unique_results[0]["score"] if unique_results else 0,
             "llm_enhanced": llm_used,
             "llm_calls": 1 if llm_used else 0,
-            "queries_used": len(queries),
+            "queries_used": len(final_state.get("queries", [])),
             "papers_per_query": config.PAPERS_PER_QUERY,
             "threshold": threshold,
             "max_papers_used": max_papers,
             "all_scored_papers": unique_all_scored,
-            "mode": "SINGLE_AGENT_LLM" if llm_used else "SINGLE_AGENT_LOCAL",
+            "mode": "SINGLE_AGENT_LANGGRAPH_LLM" if llm_used else "SINGLE_AGENT_LANGGRAPH_LOCAL",
         }
 
         self.log_to_file(
-            f"\n=== LOCAL RUN {datetime.now()} ===\nTopic: {topic}\nMetrics: {metrics}"
+            f"\n=== LANGGRAPH SINGLE-AGENT RUN {datetime.now()} ===\nTopic: {topic}\nMetrics: {metrics}"
         )
-        return report_body, metrics, self.steps
+        return final_state["report"], metrics, self.steps

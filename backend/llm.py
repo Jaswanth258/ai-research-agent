@@ -1,11 +1,12 @@
 """
-Featherless AI LLM Integration
-OpenAI-compatible API wrapper for enhanced agent reasoning.
+LangChain & Featherless AI LLM Integration
+OpenAI-compatible model wrappers & prompt templates using LangChain.
 Set FEATHERLESS_API_KEY in .env to enable LLM-powered synthesis.
 """
 import os
 import hashlib
-from typing import Optional
+import re
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,33 +15,42 @@ FEATHERLESS_API_KEY = os.getenv("FEATHERLESS_API_KEY", "")
 FEATHERLESS_BASE_URL = "https://api.featherless.ai/v1"
 DEFAULT_MODEL = os.getenv("FEATHERLESS_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
 
-_client = None
-
-def get_client():
-    """Get or create the OpenAI-compatible client for Featherless AI."""
-    global _client
-    if not FEATHERLESS_API_KEY:
-        return None
-    if _client is None:
-        try:
-            from openai import OpenAI
-            _client = OpenAI(
-                api_key=FEATHERLESS_API_KEY,
-                base_url=FEATHERLESS_BASE_URL,
-            )
-        except ImportError:
-            print("[LLM] openai package not installed. Run: pip install openai")
-            return None
-        except Exception as e:
-            print(f"[LLM] Failed to create client: {e}")
-            return None
-    return _client
+_llm_instances: Dict[str, Any] = {}
+_llm_cache: Dict[str, str] = {}
 
 def is_available() -> bool:
     """Check if LLM integration is configured."""
     return bool(FEATHERLESS_API_KEY)
 
-_llm_cache = {}
+def get_chat_model(
+    model: str = DEFAULT_MODEL,
+    temperature: float = 0.65,
+    max_tokens: int = 900
+):
+    """
+    Get or create a LangChain ChatOpenAI instance configured for Featherless AI.
+    """
+    if not is_available():
+        return None
+    key = f"{model}:{temperature}:{max_tokens}"
+    if key in _llm_instances:
+        return _llm_instances[key]
+
+    try:
+        from langchain_openai import ChatOpenAI
+        chat = ChatOpenAI(
+            model=model,
+            api_key=FEATHERLESS_API_KEY,
+            base_url=FEATHERLESS_BASE_URL,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=60,
+        )
+        _llm_instances[key] = chat
+        return chat
+    except Exception as e:
+        print(f"[LangChain LLM] Failed to create ChatOpenAI model: {e}")
+        return None
 
 def generate(
     prompt: str,
@@ -50,34 +60,39 @@ def generate(
     temperature: float = 0.65,
 ) -> Optional[str]:
     """
-    Generate text using Featherless AI.
-    Returns None if LLM is unavailable — callers should fall back to templates.
+    Generate text using LangChain ChatOpenAI pipeline with LCEL.
+    Falls back gracefully if LLM is unavailable or errors occur.
     """
-    client = get_client()
-    if not client:
+    if not is_available():
         return None
 
-    # Use in-memory caching to bypass redundant LLM API calls on "next reruns"
     cache_key = hashlib.md5(f"{model}:{system_prompt}:{prompt}:{max_tokens}:{temperature}".encode("utf-8")).hexdigest()
     if cache_key in _llm_cache:
         print("[LLM] Cache hit! Returning saved response.")
         return _llm_cache[cache_key]
 
+    chat = get_chat_model(model=model, temperature=temperature, max_tokens=max_tokens)
+    if not chat:
+        return None
+
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=max_tokens,
-            temperature=temperature,
-        )
-        result = response.choices[0].message.content.strip()
+        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.output_parsers import StrOutputParser
+
+        prompt_template = ChatPromptTemplate.from_messages([
+            ("system", "{system_prompt}"),
+            ("human", "{user_prompt}")
+        ])
+        chain = prompt_template | chat | StrOutputParser()
+        result = chain.invoke({
+            "system_prompt": system_prompt,
+            "user_prompt": prompt
+        }).strip()
+
         _llm_cache[cache_key] = result
         return result
     except Exception as e:
-        print(f"[LLM] Generation failed: {e}")
+        print(f"[LangChain LLM] Generation failed: {e}")
         return None
 
 
@@ -101,7 +116,6 @@ def expand_queries_llm(topic: str) -> Optional[list]:
     )
     if not result:
         return None
-    import re
     cleaned_queries = []
     for line in result.strip().splitlines():
         # Strip bullets (-, *), numbering (1., 1)), and extra whitespace
@@ -175,7 +189,6 @@ def analyze_paper_llm(text: str, filename: str = "Uploaded Paper") -> Optional[s
     Analyze a research paper's extracted text.
     Produces a structured report with summary, key insights, and research gaps.
     """
-    # Truncate to avoid exceeding token limits (roughly 6000 chars ≈ 1500 tokens)
     truncated = text[:6000]
     if len(text) > 6000:
         truncated += "\n\n[... text truncated for analysis ...]"
@@ -203,9 +216,6 @@ def analyze_paper_llm(text: str, filename: str = "Uploaded Paper") -> Optional[s
         max_tokens=1200,
         temperature=0.5,
     )
-
-
-# ── Enhanced Multi-Agent Prompt Helpers ─────────────────────────────────────
 
 
 def analyze_trends_llm(topic: str, papers: list, cluster_info: str = "") -> Optional[str]:
@@ -251,7 +261,6 @@ def critique_report_llm(topic: str, report: str) -> Optional[str]:
     """
     Critic agent: review the Writer's first draft and identify weaknesses.
     """
-    # Truncate report to fit within context window
     truncated_report = report[:4000]
 
     prompt = (
@@ -284,7 +293,6 @@ def revise_report_llm(topic: str, original_report: str, critique: str,
     Writer agent (revision pass): improve the report based on Critic feedback
     and TrendAnalyst insights.
     """
-    # Truncate inputs to fit context
     trunc_report = original_report[:3500]
     trunc_critique = critique[:1500]
     trunc_trends = trend_analysis[:1200] if trend_analysis else ""
@@ -319,4 +327,3 @@ def revise_report_llm(topic: str, original_report: str, critique: str,
         max_tokens=1500,
         temperature=0.55,
     )
-

@@ -38,6 +38,10 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Local database
+backend/data/
+*.db
 *.swo
 
 # Gemini agent data
