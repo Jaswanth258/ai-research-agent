@@ -21,7 +21,7 @@ An AI-powered autonomous research assistant that discovers, evaluates, and synth
 ![FAISS](https://img.shields.io/badge/FAISS-Vector_Store-FF6F00?logo=meta&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 
-🔗 **Live Demo**: [jaswanthy07-agentic-research-bot.hf.space](https://jaswanthy07-agentic-research-bot.hf.space)
+🔗 **Live Demo**: [jaswanth258-agentic-research-bot.hf.space](https://jaswanth258-agentic-research-bot.hf.space)
 
 ---
 
