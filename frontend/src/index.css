@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ═══════════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -41,7 +41,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   color: var(--text-1);
   min-height: 100vh;
@@ -374,7 +374,7 @@ body {
   color: var(--text-1);
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .markdown-content h1 { font-size: 1.4rem; font-weight: 800; }
 .markdown-content h2 {
@@ -3037,4 +3037,410 @@ body {
 
   .landing-cta-section { padding: 3rem 1.5rem; }
   .cta-card { padding: 2.5rem 1.5rem; }
+}
+
+
+/* ===============================================================
+   SAAS REDESIGN V2.0 EXTENSIONS (LangGraph, Typography, Rankings)
+   =============================================================== */
+
+/* --- Typography System --- */
+h1, h2, h3, h4, .brand-name, .tool-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.025em;
+}
+
+code, pre, .mono-font, .live-log-entry, .quality-metric-val, .metric-val {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* --- Atmospheric SaaS Background --- */
+.app-root {
+  background-image: 
+    radial-gradient(ellipse 70% 40% at 50% -15%, rgba(99, 102, 241, 0.12), transparent 70%),
+    radial-gradient(ellipse 50% 30% at 90% 90%, rgba(244, 63, 94, 0.06), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* --- Interactive LangGraph 6-Node Pipeline Tracker --- */
+.langgraph-tracker {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.75rem;
+  margin: 1.5rem auto 2rem;
+  max-width: 960px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  animation: fadeIn 0.4s ease;
+}
+
+.tracker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.tracker-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+.tracker-nodes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  position: relative;
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+
+.tracker-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 110px;
+  position: relative;
+}
+
+.node-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  z-index: 2;
+}
+
+.node-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.node-status-chip {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-3);
+  font-weight: 500;
+}
+
+/* Active Node */
+.tracker-node.node-active .node-icon-box {
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  border-color: #a5b4fc;
+  color: white;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.6);
+  animation: pulseNode 1.8s infinite ease-in-out;
+}
+.tracker-node.node-active .node-label {
+  color: var(--text-1);
+}
+.tracker-node.node-active .node-status-chip {
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+/* Completed Node */
+.tracker-node.node-done .node-icon-box {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+.tracker-node.node-done .node-label {
+  color: #10b981;
+}
+.tracker-node.node-done .node-status-chip {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+@keyframes pulseNode {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(99, 102, 241, 0.5); }
+  50% { transform: scale(1.08); box-shadow: 0 0 25px rgba(139, 92, 246, 0.8); }
+}
+
+/* --- Search Capsule Redesign --- */
+.search-capsule-container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.search-bar-v2 {
+  display: flex;
+  align-items: center;
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 0.5rem 0.6rem 0.5rem 1.25rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.search-bar-v2:focus-within {
+  border-color: #818cf8;
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.25), 0 0 0 2px rgba(99, 102, 241, 0.3);
+  background: rgba(22, 34, 59, 0.95);
+}
+
+.search-input-v2 {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-1);
+  font-size: 1.05rem;
+  font-family: inherit;
+  padding: 0.6rem 0.5rem;
+}
+
+.search-input-v2::placeholder {
+  color: var(--text-3);
+}
+
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-3);
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  margin-right: 0.5rem;
+}
+
+/* --- Paper Card Redesign (V2) --- */
+.paper-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.paper-card-v2 {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.paper-card-v2:hover {
+  background: var(--card-2);
+  border-color: rgba(129, 140, 248, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
+}
+
+.paper-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.paper-rank-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+}
+
+.paper-relevance-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.score-high {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.score-med {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.paper-title-link {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-1);
+  text-decoration: none;
+  line-height: 1.4;
+  display: inline-block;
+  transition: color 0.2s ease;
+}
+
+.paper-title-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.paper-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--text-2);
+  margin: 0.5rem 0 0.85rem;
+}
+
+.paper-abstract-v2 {
+  font-size: 0.88rem;
+  color: var(--text-2);
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--primary);
+  margin-top: 0.75rem;
+}
+
+.paper-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.paper-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.paper-action-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-1);
+  border-color: var(--border-2);
+}
+
+/* --- Trend Clusters (K-Means Visualizer) --- */
+.trend-clusters-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cluster-card {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  border-left: 3px solid #8b5cf6;
+}
+
+.cluster-card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #a78bfa;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cluster-card-items {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* --- Academic Report Floating Toolbar --- */
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.report-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  color: var(--text-1);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.report-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-2);
+}
+
+.copy-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #10b981;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
 }

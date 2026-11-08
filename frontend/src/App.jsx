@@ -9,7 +9,10 @@ import HistoryPage from './pages/HistoryPage';
 import MyInterestsPage from './pages/MyInterestsPage';
 import PaperAnalysisPage from './pages/PaperAnalysisPage';
 import LandingPage from './pages/LandingPage';
-import { Search, BarChart2, Info, LogIn, LogOut, Cpu, Users, Clock, FileUp, Home, Star } from 'lucide-react';
+import { 
+  Search, BarChart2, Info, LogIn, LogOut, Cpu, Users, 
+  Clock, FileUp, Star, Sparkles, Plus, FlaskConical 
+} from 'lucide-react';
 import './index.css';
 
 export default function App() {
@@ -17,9 +20,12 @@ export default function App() {
   const [userEmail, setUserEmail] = useState(null);
 
   useEffect(() => {
-    // Always start fresh – clear any old tokens so user must log in again
-    localStorage.removeItem('agentic_token');
-    localStorage.removeItem('agentic_email');
+    // Check if user has an existing session
+    const savedEmail = localStorage.getItem('agentic_email');
+    const savedToken = localStorage.getItem('agentic_token');
+    if (savedEmail && savedToken) {
+      setUserEmail(savedEmail);
+    }
   }, []);
 
   const handleLogout = () => {
@@ -35,7 +41,7 @@ export default function App() {
 
   return (
     <div className="app-root">
-      {/* Nav is hidden on the landing page for a cleaner first impression */}
+      {/* SaaS Top Navigation */}
       {activeTab !== 'landing' && (
         <nav className="top-nav">
           <div 
@@ -43,8 +49,15 @@ export default function App() {
             onClick={() => setActiveTab('landing')}
             style={{ cursor: 'pointer' }}
           >
-            <span className="brand-emoji">⚗️</span>
-            <span className="brand-name">Agentic Research Bot</span>
+            <div className="brand-icon-wrap">
+              <FlaskConical size={18} />
+            </div>
+            <div className="brand-info">
+              <span className="brand-name">Agentic Research</span>
+              <span className="brand-badge">
+                <span className="pulse-dot" /> LangGraph 6-Node Active
+              </span>
+            </div>
           </div>
 
           <div className="nav-tabs">
@@ -52,19 +65,13 @@ export default function App() {
               className={`nav-tab ${activeTab === 'research' ? 'nav-tab-active' : ''}`}
               onClick={() => setActiveTab('research')}
             >
-              <Search size={14} /> Tool
+              <Search size={14} /> Studio
             </button>
             <button
               className={`nav-tab ${activeTab === 'analysis' ? 'nav-tab-active' : ''}`}
               onClick={() => setActiveTab('analysis')}
             >
-              <BarChart2 size={14} /> Analysis
-            </button>
-            <button
-              className={`nav-tab ${activeTab === 'single' ? 'nav-tab-active' : ''}`}
-              onClick={() => setActiveTab('single')}
-            >
-              <Cpu size={14} /> Single-Agent
+              <BarChart2 size={14} /> Benchmarks
             </button>
             <button
               className={`nav-tab ${activeTab === 'multi' ? 'nav-tab-active' : ''}`}
@@ -73,10 +80,16 @@ export default function App() {
               <Users size={14} /> Multi-Agent
             </button>
             <button
+              className={`nav-tab ${activeTab === 'single' ? 'nav-tab-active' : ''}`}
+              onClick={() => setActiveTab('single')}
+            >
+              <Cpu size={14} /> Single-Agent
+            </button>
+            <button
               className={`nav-tab ${activeTab === 'paper' ? 'nav-tab-active' : ''}`}
               onClick={() => setActiveTab('paper')}
             >
-              <FileUp size={14} /> Paper Analysis
+              <FileUp size={14} /> Paper Analyzer
             </button>
             <button
               className={`nav-tab ${activeTab === 'about' ? 'nav-tab-active' : ''}`}
@@ -90,7 +103,7 @@ export default function App() {
                   className={`nav-tab ${activeTab === 'interests' ? 'nav-tab-active' : ''}`}
                   onClick={() => setActiveTab('interests')}
                 >
-                  <Star size={14} /> My Interests
+                  <Star size={14} /> Interests
                 </button>
                 <button
                   className={`nav-tab ${activeTab === 'history' ? 'nav-tab-active' : ''}`}
@@ -102,20 +115,36 @@ export default function App() {
             )}
           </div>
 
-          <div className="nav-auth">
+          <div className="nav-right-actions">
+            {activeTab !== 'research' && (
+              <button 
+                className="nav-action-btn nav-login-btn"
+                onClick={() => setActiveTab('research')}
+                style={{ background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))', border: 'none', color: '#fff' }}
+              >
+                <Plus size={14} /> New Research
+              </button>
+            )}
+
             {userEmail ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-2)' }}>{userEmail}</span>
-                <button onClick={handleLogout} className="logout-btn">
-                  <LogOut size={14} /> 
+              <div className="nav-user-chip">
+                <div className="user-avatar-gradient" />
+                <span>{userEmail.split('@')[0]}</span>
+                <button 
+                  onClick={handleLogout} 
+                  className="nav-action-btn nav-logout-btn"
+                  title="Sign out"
+                  style={{ padding: '0.2rem 0.4rem', border: 'none' }}
+                >
+                  <LogOut size={13} />
                 </button>
               </div>
             ) : (
               <button
-                className="login-btn"
+                className="nav-action-btn nav-login-btn"
                 onClick={() => setActiveTab('auth')}
               >
-                <LogIn size={14} /> Login / Sign Up
+                <LogIn size={14} /> Sign In
               </button>
             )}
           </div>
@@ -161,6 +190,7 @@ export default function App() {
         {activeTab === 'auth' && (
           <AuthPage onLogin={(email) => {
             setUserEmail(email);
+            localStorage.setItem('agentic_email', email);
             setActiveTab('research');
           }} />
         )}
