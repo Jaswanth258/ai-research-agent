@@ -1,7 +1,7 @@
 """
-LangChain & Featherless AI LLM Integration
+LangChain Multi-Provider LLM Integration (Groq, Featherless AI, OpenAI)
 OpenAI-compatible model wrappers & prompt templates using LangChain.
-Set FEATHERLESS_API_KEY in .env to enable LLM-powered synthesis.
+Supports Groq (Free, ultra-fast), Featherless AI, and OpenAI.
 """
 import os
 import hashlib
@@ -11,41 +11,65 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 FEATHERLESS_API_KEY = os.getenv("FEATHERLESS_API_KEY", "")
-FEATHERLESS_BASE_URL = "https://api.featherless.ai/v1"
-DEFAULT_MODEL = os.getenv("FEATHERLESS_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+if GROQ_API_KEY:
+    LLM_PROVIDER = "groq"
+    LLM_API_KEY = GROQ_API_KEY
+    LLM_BASE_URL = "https://api.groq.com/openai/v1"
+    DEFAULT_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+elif FEATHERLESS_API_KEY:
+    LLM_PROVIDER = "featherless"
+    LLM_API_KEY = FEATHERLESS_API_KEY
+    LLM_BASE_URL = "https://api.featherless.ai/v1"
+    DEFAULT_MODEL = os.getenv("FEATHERLESS_MODEL", "meta-llama/Meta-Llama-3.1-8B-Instruct")
+elif OPENAI_API_KEY:
+    LLM_PROVIDER = "openai"
+    LLM_API_KEY = OPENAI_API_KEY
+    LLM_BASE_URL = None
+    DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+else:
+    LLM_PROVIDER = None
+    LLM_API_KEY = ""
+    LLM_BASE_URL = None
+    DEFAULT_MODEL = "qwen/qwen3.8-27b"
 
 _llm_instances: Dict[str, Any] = {}
 _llm_cache: Dict[str, str] = {}
 
 def is_available() -> bool:
     """Check if LLM integration is configured."""
-    return bool(FEATHERLESS_API_KEY)
+    return bool(LLM_API_KEY)
 
 def get_chat_model(
-    model: str = DEFAULT_MODEL,
+    model: str = None,
     temperature: float = 0.65,
     max_tokens: int = 900
 ):
     """
-    Get or create a LangChain ChatOpenAI instance configured for Featherless AI.
+    Get or create a LangChain ChatOpenAI instance configured for the active provider.
     """
     if not is_available():
         return None
+    model = model or DEFAULT_MODEL
     key = f"{model}:{temperature}:{max_tokens}"
     if key in _llm_instances:
         return _llm_instances[key]
 
     try:
         from langchain_openai import ChatOpenAI
-        chat = ChatOpenAI(
-            model=model,
-            api_key=FEATHERLESS_API_KEY,
-            base_url=FEATHERLESS_BASE_URL,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            timeout=60,
-        )
+        kwargs = {
+            "model": model,
+            "api_key": LLM_API_KEY,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "timeout": 60,
+        }
+        if LLM_BASE_URL:
+            kwargs["base_url"] = LLM_BASE_URL
+        chat = ChatOpenAI(**kwargs)
         _llm_instances[key] = chat
         return chat
     except Exception as e:
@@ -55,7 +79,7 @@ def get_chat_model(
 def generate(
     prompt: str,
     system_prompt: str = "You are a helpful AI research assistant.",
-    model: str = DEFAULT_MODEL,
+    model: str = None,
     max_tokens: int = 900,
     temperature: float = 0.65,
 ) -> Optional[str]:
@@ -65,6 +89,7 @@ def generate(
     """
     if not is_available():
         return None
+    model = model or DEFAULT_MODEL
 
     cache_key = hashlib.md5(f"{model}:{system_prompt}:{prompt}:{max_tokens}:{temperature}".encode("utf-8")).hexdigest()
     if cache_key in _llm_cache:
