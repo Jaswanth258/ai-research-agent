@@ -49,7 +49,8 @@ def run_cli():
 
 def run_web():
     port = int(os.getenv("PORT", 7860 if os.getenv("SPACE_ID") else 8000))
-    host = "0.0.0.0" if os.getenv("SPACE_ID") else "127.0.0.1"
+    is_cloud = bool(os.getenv("SPACE_ID") or os.getenv("PORT") or os.getenv("RENDER"))
+    host = "0.0.0.0" if is_cloud else "127.0.0.1"
     print(f"\n=== Agentic Research Bot (Web UI Mode) ===\n")
     print(f"Starting FastAPI server at http://{host}:{port}")
     print("Press Ctrl+C to stop the server.")
