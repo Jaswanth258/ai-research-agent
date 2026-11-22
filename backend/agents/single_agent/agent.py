@@ -35,8 +35,15 @@ class SingleAgent:
     def __init__(self):
         self.steps: List[str] = []
         self._current_callback = None
-        self.model: SentenceTransformer = self._load_model_with_retry()
+        self._model: Optional[SentenceTransformer] = None
         self.graph = self._build_graph()
+
+    @property
+    def model(self) -> SentenceTransformer:
+        """Lazy-load SentenceTransformer model on first use."""
+        if self._model is None:
+            self._model = self._load_model_with_retry()
+        return self._model
 
     def _load_model_with_retry(self, max_retries: int = 3) -> SentenceTransformer:
         """Load SentenceTransformer model with retry logic."""
